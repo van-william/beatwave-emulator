@@ -1,8 +1,7 @@
-
 import * as Tone from 'tone';
 import { DRUM_SOUNDS, TOTAL_STEPS } from './constants';
 import { Pattern } from '../types';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 class AudioEngine {
   private players: Map<string, Tone.Player> = new Map();

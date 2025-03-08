@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import TR808DrumTrack from './TR808DrumTrack';
 import TR808ControlPanel from './TR808ControlPanel';
@@ -7,7 +6,7 @@ import TR808StepButton from './TR808StepButton';
 import { DRUM_SOUNDS, TOTAL_STEPS, INITIAL_PATTERN } from '@/lib/constants';
 import { Pattern, Step } from '@/types';
 import audioEngine from '@/lib/audioEngine';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 const TR808: React.FC = () => {
   const [pattern, setPattern] = useState<Pattern>(INITIAL_PATTERN);

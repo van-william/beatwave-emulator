@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import TR808Button from './TR808Button';
 import TR808Knob from './TR808Knob';
@@ -8,7 +7,7 @@ import { DEFAULT_BPM } from '@/lib/constants';
 import audioEngine from '@/lib/audioEngine';
 import videoExporter from '@/lib/videoExporter';
 import { Play, Pause, Square, Save, Upload, Download, Music, Mic } from 'lucide-react';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 interface TR808ControlPanelProps {
   pattern: Pattern;

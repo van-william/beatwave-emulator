@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Pattern, SavedPattern } from '@/types';
 import TR808Button from './TR808Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Save, Trash, Download, Upload } from 'lucide-react';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 interface TR808PatternManagerProps {
   currentPattern: Pattern;

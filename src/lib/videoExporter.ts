@@ -1,7 +1,7 @@
 
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 import { Pattern } from '../types';
 import { DRUM_SOUNDS, TOTAL_STEPS } from './constants';
 
