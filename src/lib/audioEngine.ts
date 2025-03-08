@@ -30,23 +30,25 @@ class AudioEngine {
       // Create a limiter to prevent clipping
       const limiter = new Tone.Limiter(-3).toDestination();
       
-      // Load all drum sounds
+      // Reset sound loading counters
       this.soundsLoaded = 0;
+      this.isLoaded = false;
       
-      // Log available sounds
+      // Load all drum sounds
       console.log("Loading sounds from:", DRUM_SOUNDS.map(s => `/sounds/${s.soundFile}`));
       
-      DRUM_SOUNDS.forEach(async (sound) => {
+      // Make individual player for each sound with proper path
+      for (const sound of DRUM_SOUNDS) {
         try {
           // Create volume and panner nodes for each sound
           const volume = new Tone.Volume(0);
           const panner = new Tone.Panner(0);
           
-          // Create the player with placeholder buffer first
+          // Create the player with the correct sound file path
           const player = new Tone.Player({
             url: `/sounds/${sound.soundFile}`,
             onload: () => {
-              console.log(`Loaded sound: ${sound.name}`);
+              console.log(`Loaded sound: ${sound.name} (${sound.soundFile})`);
               this.soundsLoaded++;
               
               if (this.soundsLoaded === this.totalSounds) {
@@ -59,20 +61,54 @@ class AudioEngine {
               }
             },
             onerror: (err) => {
-              console.error(`Error loading sound ${sound.name}:`, err);
+              console.error(`Error loading sound ${sound.name} (${sound.soundFile}):`, err);
+              toast.error(`Failed to load: ${sound.name}`);
               
-              // Create a fallback sound (sine wave 1s long)
+              // Create a unique fallback sound for each instrument type
+              // Customize the fallback sound to better match the instrument type
               const fallbackBuffer = Tone.context.createBuffer(2, 44100, 44100);
+              
+              // Create more distinct fallback sounds based on instrument type
               for (let channel = 0; channel < 2; channel++) {
                 const channelData = fallbackBuffer.getChannelData(channel);
-                for (let i = 0; i < 44100; i++) {
-                  // Create a short percussive envelope
-                  const env = Math.exp(-i / 2000);
-                  channelData[i] = Math.sin(i * 0.1) * env * 0.5;
+                
+                // Apply different sound characteristics based on instrument type
+                if (sound.id.includes('kick')) {
+                  // Low frequency for kick
+                  for (let i = 0; i < 44100; i++) {
+                    const env = Math.exp(-i / 3000);
+                    channelData[i] = Math.sin(i * 0.05) * env * 0.8;
+                  }
+                } else if (sound.id.includes('snare') || sound.id.includes('clap')) {
+                  // Noise component for snare/clap
+                  for (let i = 0; i < 44100; i++) {
+                    const env = Math.exp(-i / 1000);
+                    channelData[i] = (Math.random() * 2 - 1) * env * 0.7;
+                  }
+                } else if (sound.id.includes('hat') || sound.id.includes('cymbal')) {
+                  // High frequency noise for hats/cymbals
+                  for (let i = 0; i < 44100; i++) {
+                    const env = Math.exp(-i / (sound.id.includes('open') ? 4000 : 800));
+                    channelData[i] = (Math.random() * 2 - 1) * env * 0.6;
+                  }
+                } else if (sound.id.includes('tom')) {
+                  // Medium frequency for toms
+                  for (let i = 0; i < 44100; i++) {
+                    const env = Math.exp(-i / 1500);
+                    // Adjust frequency based on tom type (low/mid/high)
+                    const freq = sound.id.includes('low') ? 0.1 : 
+                                sound.id.includes('mid') ? 0.15 : 0.2;
+                    channelData[i] = Math.sin(i * freq) * env * 0.7;
+                  }
+                } else {
+                  // Default percussive sound for other instruments
+                  for (let i = 0; i < 44100; i++) {
+                    const env = Math.exp(-i / 2000);
+                    channelData[i] = Math.sin(i * 0.15) * env * 0.6;
+                  }
                 }
               }
               
-              // Using setBuffer instead of directly assigning the buffer property
               player.buffer = new Tone.ToneAudioBuffer(fallbackBuffer);
               this.soundsLoaded++;
               
@@ -95,11 +131,13 @@ class AudioEngine {
           this.volumes.set(sound.id, volume);
           this.panners.set(sound.id, panner);
           this.players.set(sound.id, player);
+          
+          console.log(`Set up audio pipeline for ${sound.id}`);
         } catch (error) {
           console.error(`Error setting up sound ${sound.name}:`, error);
           toast.error(`Failed to initialize sound: ${sound.name}`);
         }
-      });
+      }
       
       // Set up the main sequencer
       Tone.Transport.scheduleRepeat((time) => {
@@ -132,6 +170,8 @@ class AudioEngine {
         console.log(`  -> Playing ${sound.name} on step ${this.currentStep}`);
         const player = this.players.get(sound.id);
         if (player) {
+          // Make sure we're not still playing the previous trigger
+          player.stop();
           player.start(time);
         } else {
           console.warn(`Player not found for sound: ${sound.id}`);
@@ -296,6 +336,8 @@ class AudioEngine {
     const player = this.players.get(soundId);
     if (player) {
       if (player.loaded) {
+        // Stop any previous playback to avoid overlaps
+        player.stop();
         player.start();
       } else {
         console.warn(`Sound ${soundId} not loaded yet`);
