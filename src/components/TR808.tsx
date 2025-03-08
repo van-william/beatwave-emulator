@@ -1,10 +1,10 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import TR808DrumTrack from './TR808DrumTrack';
 import TR808ControlPanel from './TR808ControlPanel';
 import TR808PatternManager from './TR808PatternManager';
-import TR808StepButton from './TR808StepButton';
 import { DRUM_SOUNDS, TOTAL_STEPS, INITIAL_PATTERN } from '@/lib/constants';
-import { Pattern, Step } from '@/types';
+import { Pattern } from '@/types';
 import audioEngine from '@/lib/audioEngine';
 import { toast } from 'sonner';
 
@@ -30,6 +30,7 @@ const TR808: React.FC = () => {
     
     audioEngine.onLoaded(() => {
       setIsLoaded(true);
+      // Set initial pattern to the audio engine
       audioEngine.setPattern(pattern);
       toast.success('TR-808 loaded and ready');
     });
@@ -40,7 +41,9 @@ const TR808: React.FC = () => {
     };
   }, []);
   
+  // Update audio engine when pattern changes
   useEffect(() => {
+    console.log("Pattern updated, sending to audio engine:", pattern);
     audioEngine.setPattern(pattern);
   }, [pattern]);
 
@@ -54,10 +57,14 @@ const TR808: React.FC = () => {
         );
       }
       
-      return {
+      const updatedPattern = {
         ...prevPattern,
         steps: newSteps
       };
+      
+      // Log pattern updates for debugging
+      console.log(`Toggle step ${stepId} for ${soundId}. Pattern updated.`);
+      return updatedPattern;
     });
   };
 
@@ -100,7 +107,11 @@ const TR808: React.FC = () => {
           {/* Step Labels */}
           <div className="flex mb-2 ml-[13.5rem] mr-2">
             {Array.from({ length: TOTAL_STEPS }).map((_, index) => (
-              <div key={index} className="w-10 flex-shrink-0 text-center text-xs text-tr808-silver-dark font-mono">
+              <div 
+                key={index} 
+                className={`w-10 flex-shrink-0 text-center text-xs font-mono
+                           ${currentStep === index ? 'text-tr808-orange font-bold' : 'text-tr808-silver-dark'}`}
+              >
                 {index + 1}
               </div>
             ))}

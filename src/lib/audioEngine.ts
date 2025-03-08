@@ -1,4 +1,3 @@
-
 import * as Tone from 'tone';
 import { DRUM_SOUNDS, TOTAL_STEPS } from './constants';
 import { Pattern } from '../types';
@@ -37,9 +36,6 @@ class AudioEngine {
       // Log available sounds
       console.log("Loading sounds from:", DRUM_SOUNDS.map(s => `/sounds/${s.soundFile}`));
       
-      // Create placeholder silent buffer for initial loading
-      const silentBuffer = Tone.context.createBuffer(2, 44100, 44100);
-      
       DRUM_SOUNDS.forEach(async (sound) => {
         try {
           // Create volume and panner nodes for each sound
@@ -76,7 +72,8 @@ class AudioEngine {
                 }
               }
               
-              player.buffer = fallbackBuffer;
+              // Using setBuffer instead of directly assigning the buffer property
+              player.buffer = new Tone.ToneAudioBuffer(fallbackBuffer);
               this.soundsLoaded++;
               
               if (this.soundsLoaded === this.totalSounds) {
@@ -119,22 +116,36 @@ class AudioEngine {
   }
   
   private playCurrentStep(time: number) {
-    if (!this.pattern) return;
+    if (!this.pattern) {
+      console.warn("No pattern loaded for playback");
+      return;
+    }
     
+    // Log the current step for debugging
+    console.log(`Playing step ${this.currentStep}`);
+    
+    // Check each drum sound to see if it should play on this step
     DRUM_SOUNDS.forEach(sound => {
       const steps = this.pattern?.steps[sound.id];
-      if (steps && steps[this.currentStep].active) {
+      
+      if (steps && steps[this.currentStep] && steps[this.currentStep].active) {
+        console.log(`  -> Playing ${sound.name} on step ${this.currentStep}`);
         const player = this.players.get(sound.id);
         if (player) {
           player.start(time);
+        } else {
+          console.warn(`Player not found for sound: ${sound.id}`);
         }
       }
     });
     
+    // Update the UI with current step
     if (this.stepCallback) {
-      this.stepCallback(this.currentStep);
+      // Use setTimeout to ensure the UI update happens after the current stack resolves
+      setTimeout(() => this.stepCallback && this.stepCallback(this.currentStep), 0);
     }
     
+    // Move to the next step
     this.currentStep = (this.currentStep + 1) % TOTAL_STEPS;
   }
   
@@ -161,6 +172,12 @@ class AudioEngine {
       return;
     }
     
+    if (!this.pattern) {
+      console.warn("No pattern loaded for playback");
+      toast.warning("No pattern loaded. Please create a pattern first.");
+      return;
+    }
+    
     try {
       // Ensure audio context is running
       if (Tone.context.state !== 'running') {
@@ -168,8 +185,11 @@ class AudioEngine {
         console.log("Tone.js context started:", Tone.context.state);
       }
       
+      // Reset to first step when starting
+      this.currentStep = 0;
       Tone.Transport.start();
       this.isPlaying = true;
+      console.log("Sequencer started with pattern:", this.pattern);
     } catch (error) {
       console.error('Error starting playback:', error);
       toast.error('Failed to start playback');
