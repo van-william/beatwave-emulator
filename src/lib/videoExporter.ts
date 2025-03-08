@@ -11,19 +11,23 @@ class VideoExporter {
   private isLoading = false;
 
   constructor() {
-    this.initialize();
+    // Defer initialization until needed to save resources
   }
 
   private async initialize() {
     if (this.isLoaded || this.isLoading) return;
     
     this.isLoading = true;
+    toast.info('Loading video export module...');
     
     try {
       this.ffmpeg = new FFmpeg();
       
-      // Load FFmpeg wasm
+      // Load FFmpeg wasm with more explicit error handling
       const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd';
+      
+      console.log('Loading FFmpeg from:', baseURL);
+      
       await this.ffmpeg.load({
         coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
         wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
@@ -32,18 +36,22 @@ class VideoExporter {
       console.log('FFmpeg loaded successfully');
       this.isLoaded = true;
       this.isLoading = false;
+      toast.success('Video export module loaded successfully');
     } catch (error) {
       console.error('Error loading FFmpeg:', error);
       this.isLoading = false;
-      toast.error('Failed to load video export module');
+      toast.error('Failed to load video export module. Please check your internet connection and try again.');
     }
   }
 
   public async exportPattern(pattern: Pattern, canvasRef: React.RefObject<HTMLCanvasElement>) {
+    toast.info('Preparing to export video...');
+    
+    // Initialize FFmpeg if not already loaded
     if (!this.isLoaded) {
       await this.initialize();
       if (!this.isLoaded) {
-        toast.error('Video export module is not loaded. Please try again.');
+        toast.error('Unable to load the video export module. Please try refreshing the page.');
         return;
       }
     }
@@ -58,20 +66,23 @@ class VideoExporter {
       return;
     }
     
-    toast.info('Preparing to export video...');
-    
     try {
       // Generate frames
       const canvas = canvasRef.current;
-      const framesPerBeat = 10; // More frames = smoother animation but larger file
+      const framesPerBeat = 8; // Slightly reduced for better performance
       const totalFrames = TOTAL_STEPS * framesPerBeat;
+      
+      toast.info('Generating video frames...');
       
       for (let i = 0; i < totalFrames; i++) {
         const stepIndex = Math.floor(i / framesPerBeat);
         
         // Clear canvas
         const ctx = canvas.getContext('2d');
-        if (!ctx) continue;
+        if (!ctx) {
+          toast.error('Canvas context not available');
+          return;
+        }
         
         // Draw background
         ctx.fillStyle = '#403E43';
@@ -108,26 +119,34 @@ class VideoExporter {
           }
         });
         
-        // Save frame
-        const frameData = canvas.toDataURL('image/jpeg').split(',')[1];
+        // Save frame - with more verbose logging
+        if (i === 0 || i === totalFrames - 1) {
+          console.log(`Generating frame ${i+1}/${totalFrames}`);
+        }
+        
+        const frameData = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
         const frameBuffer = Uint8Array.from(atob(frameData), c => c.charCodeAt(0));
         await this.ffmpeg.writeFile(`frame${i.toString().padStart(5, '0')}.jpg`, frameBuffer);
       }
       
       toast.info('Creating video from frames...');
       
-      // Use FFmpeg to create video from frames
+      // Use FFmpeg to create video from frames with more verbose logging
       await this.ffmpeg.exec([
         '-framerate', '30',
         '-i', 'frame%05d.jpg',
         '-c:v', 'libx264',
         '-pix_fmt', 'yuv420p',
-        '-crf', '23',
+        '-crf', '25',
         'output.mp4'
       ]);
       
+      console.log('FFmpeg processing complete, reading output file');
+      
       // Read the output file
       const outputData = await this.ffmpeg.readFile('output.mp4');
+      console.log('Output file read, creating blob');
+      
       const blob = new Blob([outputData], { type: 'video/mp4' });
       const url = URL.createObjectURL(blob);
       
@@ -140,9 +159,16 @@ class VideoExporter {
       // Clean up
       URL.revokeObjectURL(url);
       toast.success('Video exported successfully!');
+      
+      // Clean up FFmpeg memory
+      this.ffmpeg.deleteFile('output.mp4');
+      for (let i = 0; i < totalFrames; i++) {
+        await this.ffmpeg.deleteFile(`frame${i.toString().padStart(5, '0')}.jpg`);
+      }
+      
     } catch (error) {
       console.error('Error exporting video:', error);
-      toast.error('Failed to export video');
+      toast.error('Failed to export video. Please try again with a simpler pattern.');
     }
   }
 }
