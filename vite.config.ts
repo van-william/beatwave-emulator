@@ -19,4 +19,22 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'tone': ['tone'],
+          'vendor': [
+            'react',
+            'react-dom',
+            'react-router-dom',
+            '@supabase/supabase-js'
+          ]
+        }
+      }
+    }
+  }
 }));
