@@ -1,36 +1,34 @@
-
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-interface TR808ButtonProps {
-  onClick: () => void;
+export interface TR808ButtonProps {
   children: React.ReactNode;
-  className?: string;
+  onClick: () => void;
   variant?: 'default' | 'orange' | 'amber';
-  active?: boolean;
+  disabled?: boolean;
 }
 
-const TR808Button: React.FC<TR808ButtonProps> = ({
-  onClick,
-  children,
-  className,
+const TR808Button: React.FC<TR808ButtonProps> = ({ 
+  children, 
+  onClick, 
   variant = 'default',
-  active = false
+  disabled = false
 }) => {
+  const baseClasses = "px-3 py-2 rounded-md flex items-center justify-center transition-colors";
   const variantClasses = {
-    default: 'bg-gradient-to-b from-tr808-silver to-tr808-silver-dark text-tr808-body',
-    orange: 'bg-gradient-to-b from-tr808-orange to-tr808-orange-light text-white',
-    amber: 'bg-gradient-to-b from-tr808-amber to-[#FFD280] text-tr808-body'
+    default: "bg-tr808-panel hover:bg-tr808-silver-dark/30 text-tr808-silver",
+    orange: "bg-tr808-orange hover:bg-tr808-orange/90 text-tr808-body",
+    amber: "bg-tr808-amber hover:bg-tr808-amber/90 text-tr808-body"
   };
 
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       className={cn(
-        'tr808-button',
+        baseClasses,
         variantClasses[variant],
-        active ? 'shadow-tr808-pressed transform-none' : '',
-        className
+        disabled && "opacity-50 cursor-not-allowed hover:bg-tr808-panel"
       )}
     >
       {children}

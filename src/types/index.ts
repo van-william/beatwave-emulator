@@ -1,4 +1,3 @@
-
 export interface DrumSound {
   id: string;
   name: string;
@@ -20,5 +19,8 @@ export interface Pattern {
 }
 
 export interface SavedPattern extends Pattern {
-  date: string;
+  id: string;
+  created_at: string;
+  is_public: boolean;
+  user_id: string;
 }
