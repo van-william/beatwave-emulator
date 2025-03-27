@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import TR808DrumTrack from './TR808DrumTrack';
 import TR808ControlPanel from './TR808ControlPanel';
@@ -39,7 +38,7 @@ const TR808: React.FC = () => {
       // Cleanup
       audioEngine.stop();
     };
-  }, []);
+  }, [pattern]);
   
   // Update audio engine when pattern changes
   useEffect(() => {

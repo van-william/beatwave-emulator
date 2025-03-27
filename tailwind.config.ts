@@ -1,5 +1,7 @@
-
 import type { Config } from "tailwindcss";
+import { fontFamily } from "tailwindcss/defaultTheme";
+import plugin from "tailwindcss/plugin";
+import animatePlugin from "tailwindcss-animate";
 
 export default {
 	darkMode: ["class"],
@@ -72,6 +74,9 @@ export default {
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
 			},
+			fontFamily: {
+				sans: ["var(--font-sans)", ...fontFamily.sans],
+			},
 			keyframes: {
 				'accordion-down': {
 					from: {
@@ -114,6 +119,14 @@ export default {
 					'100%': {
 						opacity: '1'
 					}
+				},
+				'fade-out': {
+					'from': {
+						opacity: '1'
+					},
+					'to': {
+						opacity: '0'
+					}
 				}
 			},
 			animation: {
@@ -121,7 +134,8 @@ export default {
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'pulse-light': 'pulse-light 2s infinite',
 				'slide-in': 'slide-in 0.3s ease-out forwards',
-				'fade-in': 'fade-in 0.4s ease-out forwards'
+				'fade-in': 'fade-in 0.4s ease-out forwards',
+				'fade-out': 'fade-out 0.2s ease-out'
 			},
 			boxShadow: {
 				'tr808': '0 4px 8px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.1)',
@@ -131,5 +145,5 @@ export default {
 			}
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [animatePlugin],
 } satisfies Config;
