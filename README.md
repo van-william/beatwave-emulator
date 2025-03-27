@@ -1,69 +1,55 @@
-# Welcome to your Lovable project
+# 808 Emulator
 
-## Project info
+## Purpose
+I started with a lovable dev project and shifted to cursor to learn more about supabase and 
+google auth methods. Why learn these in a book when I could make an 808 emulator instead!?!
+A web-based TR-808 drum machine emulator with modern UI and sound synthesis.
 
-**URL**: https://lovable.dev/projects/f60d12f7-79b6-41d8-b278-13f3b41881cf
+## Features
+- Authentic TR-808 sound emulation
+- Google Authentication for saving beats
+- Modern, responsive UI
+- Real-time sound playback
 
-## How can I edit this code?
+## Development
+```bash
+# Install dependencies
+npm install
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/f60d12f7-79b6-41d8-b278-13f3b41881cf) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Run development server
 npm run dev
+
+# Build for production
+npm run build
 ```
 
-**Edit a file directly in GitHub**
+## Deployment
+This app is configured for deployment on Netlify:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Fork/clone this repository
+2. Connect your GitHub repository to Netlify
+3. Deploy with the following settings:
+   - Build command: `npm run build`
+   - Publish directory: `dist`
+   - Node version: 16.x (or your preferred version)
 
-**Use GitHub Codespaces**
+### Authentication Setup
+1. Create a Supabase project
+2. Enable Google OAuth in Supabase Authentication settings
+3. Configure the following redirect URLs in Supabase:
+   - `https://your-netlify-domain.netlify.app/auth/callback`
+   - `https://your-netlify-domain.netlify.app`
+4. Add your Supabase URL and anon key to your Netlify environment variables:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Sound Samples
+The app uses high-quality TR-808 samples with the following characteristics:
+- Authentic analog drum synthesis
+- Multiple velocity layers
+- Natural decay and envelope shaping
+- Stereo field positioning
+- Round-robin variations for natural feel
 
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/f60d12f7-79b6-41d8-b278-13f3b41881cf) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+## Contributing
+Contributions are welcome! Please feel free to submit a Pull Request.
