@@ -4,9 +4,21 @@ import { useAuth } from "../contexts/AuthContext"
 export function LoginButton() {
   const { user, signInWithGoogle, signOut } = useAuth()
 
+  const handleSignIn = async () => {
+    try {
+      const redirectTo = window.location.hostname === 'localhost' 
+        ? 'http://localhost:8080/auth/callback'
+        : 'https://808-emulator.netlify.app/auth/callback'
+      
+      await signInWithGoogle(redirectTo)
+    } catch (error) {
+      console.error('Error signing in:', error)
+    }
+  }
+
   return (
     <Button
-      onClick={user ? signOut : signInWithGoogle}
+      onClick={user ? signOut : handleSignIn}
       variant="outline"
       className="w-full"
     >

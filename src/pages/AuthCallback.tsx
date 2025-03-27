@@ -6,12 +6,30 @@ export default function AuthCallback() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Handle the OAuth callback
-    supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') {
+    const handleAuthCallback = async () => {
+      try {
+        const { error } = await supabase.auth.getSession()
+        if (error) throw error
+        
+        // Get the hash from the URL if any (for OAuth callbacks)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const accessToken = hashParams.get('access_token')
+        
+        if (accessToken) {
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: hashParams.get('refresh_token') || '',
+          })
+        }
+        
+        navigate('/')
+      } catch (error) {
+        console.error('Error during auth callback:', error)
         navigate('/')
       }
-    })
+    }
+
+    handleAuthCallback()
   }, [navigate])
 
   return (
