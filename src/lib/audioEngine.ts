@@ -292,7 +292,7 @@ class AudioEngine {
         this.recorder.onstop = async () => {
           const audioBlob = new Blob(this.chunks, { type: 'audio/webm' });
           
-          // Convert to MP4 using FFmpeg
+          // Convert to MP3 using FFmpeg
           try {
             const { FFmpeg } = await import('@ffmpeg/ffmpeg');
             const { fetchFile, toBlobURL } = await import('@ffmpeg/util');
@@ -306,29 +306,30 @@ class AudioEngine {
             // Write the webm file
             await ffmpeg.writeFile('input.webm', await fetchFile(audioBlob));
             
-            // Convert to MP4
+            // Convert to MP3
             await ffmpeg.exec([
               '-i', 'input.webm',
-              '-c:a', 'aac',
-              'output.mp4'
+              '-c:a', 'libmp3lame',
+              '-q:a', '2',  // VBR quality setting (0-9, lower is better)
+              'output.mp3'
             ]);
             
             // Read the output file
-            const data = await ffmpeg.readFile('output.mp4');
-            const mp4Blob = new Blob([data], { type: 'audio/mp4' });
+            const data = await ffmpeg.readFile('output.mp3');
+            const mp3Blob = new Blob([data], { type: 'audio/mp3' });
             
             // Create download link
-            const url = URL.createObjectURL(mp4Blob);
+            const url = URL.createObjectURL(mp3Blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `TR808-Recording-${new Date().toISOString().slice(0, 10)}.mp4`;
+            a.download = `TR808-Recording-${new Date().toISOString().slice(0, 10)}.mp3`;
             a.click();
             
             // Cleanup
             URL.revokeObjectURL(url);
-            toast.success('Recording saved as MP4!');
+            toast.success('Recording saved as MP3!');
           } catch (error) {
-            console.error('Error converting to MP4:', error);
+            console.error('Error converting to MP3:', error);
             // Fallback to webm if conversion fails
             const url = URL.createObjectURL(audioBlob);
             const a = document.createElement('a');
@@ -336,7 +337,7 @@ class AudioEngine {
             a.download = `TR808-Recording-${new Date().toISOString().slice(0, 10)}.webm`;
             a.click();
             URL.revokeObjectURL(url);
-            toast.warning('Recording saved as WebM (MP4 conversion failed)');
+            toast.warning('Recording saved as WebM (MP3 conversion failed)');
           }
         };
         
