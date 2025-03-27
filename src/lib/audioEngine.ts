@@ -275,49 +275,78 @@ class AudioEngine {
   }
   
   public async startRecording() {
-    if (!this.isLoaded) {
-      toast.error('Still loading sounds, please wait...');
-      return;
-    }
-    
-    if (this.isRecording) {
-      return;
-    }
-    
-    try {
-      // Request microphone access explicitly with visible message
-      toast.info("Please allow microphone access to record your beat...");
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.recorder = new MediaRecorder(stream);
-      this.chunks = [];
-      
-      this.recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          this.chunks.push(event.data);
-        }
-      };
-      
-      this.recorder.onstop = () => {
-        const blob = new Blob(this.chunks, { type: 'audio/webm' });
-        const url = URL.createObjectURL(blob);
+    if (!this.isRecording) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         this.chunks = [];
+        this.recorder = new MediaRecorder(stream, {
+          mimeType: 'audio/webm;codecs=opus'
+        });
         
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `TR808-Beat-${new Date().toISOString().slice(0, 10)}.webm`;
-        a.click();
+        this.recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            this.chunks.push(e.data);
+          }
+        };
         
-        URL.revokeObjectURL(url);
-        this.isRecording = false;
-        toast.success('Recording saved successfully!');
-      };
-      
-      this.recorder.start();
-      this.isRecording = true;
-      toast.success('Recording started');
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      toast.error('Failed to start recording. Please check microphone permissions.');
+        this.recorder.onstop = async () => {
+          const audioBlob = new Blob(this.chunks, { type: 'audio/webm' });
+          
+          // Convert to MP4 using FFmpeg
+          try {
+            const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+            const { fetchFile, toBlobURL } = await import('@ffmpeg/util');
+            
+            const ffmpeg = new FFmpeg();
+            await ffmpeg.load({
+              coreURL: await toBlobURL('https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.js', 'text/javascript'),
+              wasmURL: await toBlobURL('https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.wasm', 'application/wasm'),
+            });
+            
+            // Write the webm file
+            await ffmpeg.writeFile('input.webm', await fetchFile(audioBlob));
+            
+            // Convert to MP4
+            await ffmpeg.exec([
+              '-i', 'input.webm',
+              '-c:a', 'aac',
+              'output.mp4'
+            ]);
+            
+            // Read the output file
+            const data = await ffmpeg.readFile('output.mp4');
+            const mp4Blob = new Blob([data], { type: 'audio/mp4' });
+            
+            // Create download link
+            const url = URL.createObjectURL(mp4Blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `TR808-Recording-${new Date().toISOString().slice(0, 10)}.mp4`;
+            a.click();
+            
+            // Cleanup
+            URL.revokeObjectURL(url);
+            toast.success('Recording saved as MP4!');
+          } catch (error) {
+            console.error('Error converting to MP4:', error);
+            // Fallback to webm if conversion fails
+            const url = URL.createObjectURL(audioBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `TR808-Recording-${new Date().toISOString().slice(0, 10)}.webm`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.warning('Recording saved as WebM (MP4 conversion failed)');
+          }
+        };
+        
+        this.recorder.start();
+        this.isRecording = true;
+        toast.success('Recording started');
+      } catch (error) {
+        console.error('Error starting recording:', error);
+        toast.error('Failed to start recording. Please check your microphone permissions.');
+      }
     }
   }
   

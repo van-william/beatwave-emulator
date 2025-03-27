@@ -27,7 +27,6 @@ const TR808ControlPanel: React.FC<TR808ControlPanelProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [bpm, setBpm] = useState(pattern.bpm || DEFAULT_BPM);
-  const [masterVolume, setMasterVolume] = useState(0);
 
   const handlePlayPause = () => {
     if (isPlaying) {
@@ -103,15 +102,6 @@ const TR808ControlPanel: React.FC<TR808ControlPanelProps> = ({
             value={bpm}
             onChange={handleBpmChange}
             label="BPM"
-          />
-          
-          <TR808Knob
-            min={-20}
-            max={6}
-            value={masterVolume}
-            onChange={setMasterVolume}
-            label="Master"
-            size="lg"
           />
         </div>
         
