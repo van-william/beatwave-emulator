@@ -18,6 +18,14 @@ dist-ssr
 .env.*
 !.env.example
 
+# Supabase
+supabase/.temp
+supabase/.env
+supabase/config.toml
+.branches
+.temp
+config.toml
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
