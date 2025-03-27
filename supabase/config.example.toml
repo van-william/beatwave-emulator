@@ -1,0 +1,3 @@
+# Example Supabase configuration
+# Replace with your actual project ID from Supabase dashboard
+project_id = "your_project_id_here" 
