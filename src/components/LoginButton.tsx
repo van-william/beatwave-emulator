@@ -7,7 +7,7 @@ export function LoginButton() {
   const handleSignIn = async () => {
     try {
       const redirectTo = window.location.hostname === 'localhost' 
-        ? 'http://localhost:8080/auth/callback'
+        ? 'http://localhost:5173/auth/callback'
         : 'https://808-emulator.netlify.app/auth/callback'
       
       await signInWithGoogle(redirectTo)
