@@ -2,6 +2,7 @@ import * as Tone from 'tone';
 import { DRUM_SOUNDS, TOTAL_STEPS } from './constants';
 import { Pattern } from '../types';
 import { toast } from 'sonner';
+import * as lamejs from 'lamejs';
 
 export class AudioEngine {
   private players: Map<string, Tone.Player> = new Map();
@@ -20,6 +21,10 @@ export class AudioEngine {
   private isLoaded = false;
   private soundsLoaded = 0;
   private totalSounds = DRUM_SOUNDS.length;
+
+  private micStream: MediaStream | null = null;
+  private micSource: MediaStreamAudioSourceNode | null = null;
+  private micDestination: MediaStreamAudioDestinationNode | null = null;
 
   constructor() {
     console.log('AudioEngine constructor called');
@@ -322,13 +327,42 @@ export class AudioEngine {
     return Tone.Transport.bpm.value;
   }
   
-  public async startRecording() {
+  public async startRecording(includeMic: boolean = false) {
     if (!this.isRecording) {
       try {
+        // Create a MediaStreamDestination to capture the audio output
+        const destination = Tone.context.createMediaStreamDestination();
+        
+        // Connect all players to the destination
+        this.players.forEach(player => {
+          player.connect(destination);
+        });
+
+        // If microphone is enabled, get the mic stream and mix it with the output
+        if (includeMic) {
+          try {
+            this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            this.micSource = Tone.context.createMediaStreamSource(this.micStream);
+            this.micDestination = Tone.context.createMediaStreamDestination();
+            
+            // Connect mic to destination
+            this.micSource.connect(this.micDestination);
+            
+            // Mix mic with TR-808 output
+            const mixer = Tone.context.createGain();
+            mixer.gain.value = 0.5; // Reduce mic volume to 50%
+            this.micSource.connect(mixer);
+            mixer.connect(destination);
+          } catch (error) {
+            console.error('Error accessing microphone:', error);
+            toast.error('Failed to access microphone');
+            return;
+          }
+        }
+        
         // Create a MediaRecorder that captures the audio output
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         this.chunks = [];
-        this.recorder = new MediaRecorder(stream, {
+        this.recorder = new MediaRecorder(destination.stream, {
           mimeType: 'audio/webm;codecs=opus'
         });
         
@@ -349,94 +383,162 @@ export class AudioEngine {
     }
   }
   
-  public async exportPattern() {
-    if (!this.pattern) {
-      toast.error('No pattern to export');
-      return;
-    }
-
-    try {
-      // Create a temporary recorder for the pattern
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const chunks: Blob[] = [];
-      const recorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunks.push(e.data);
-        }
-      };
-
-      // Start recording
-      recorder.start();
-      toast.success('Exporting pattern...');
-
-      // Play one loop of the pattern
-      const wasPlaying = this.isPlaying;
-      if (!wasPlaying) {
-        this.start();
-      }
-
-      // Stop after one loop
-      setTimeout(async () => {
-        recorder.stop();
-        
-        recorder.onstop = async () => {
-          const audioBlob = new Blob(chunks, { type: 'audio/webm' });
-          
+  public async stopRecording() {
+    if (this.recorder && this.isRecording) {
+      return new Promise<void>((resolve) => {
+        this.recorder!.onstop = async () => {
           try {
-            // Convert to MP3 using FFmpeg
-            const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-            const { fetchFile, toBlobURL } = await import('@ffmpeg/util');
-            
-            const ffmpeg = new FFmpeg();
-            await ffmpeg.load({
-              coreURL: await toBlobURL('https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.js', 'text/javascript'),
-              wasmURL: await toBlobURL('https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.wasm', 'application/wasm'),
-            });
-            
-            // Write the webm file
-            await ffmpeg.writeFile('input.webm', await fetchFile(audioBlob));
-            
-            // Convert to MP3
-            await ffmpeg.exec([
-              '-i', 'input.webm',
-              '-c:a', 'libmp3lame',
-              '-q:a', '2',
-              'output.mp3'
-            ]);
-            
-            // Read the output file
-            const data = await ffmpeg.readFile('output.mp3');
-            const mp3Blob = new Blob([data], { type: 'audio/mp3' });
+            const audioBlob = new Blob(this.chunks, { type: 'audio/webm' });
             
             // Create download link
-            const url = URL.createObjectURL(mp3Blob);
+            const url = URL.createObjectURL(audioBlob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `TR808-Pattern-${new Date().toISOString().slice(0, 10)}.mp3`;
+            a.download = `TR808-Recording-${new Date().toISOString().slice(0, 10)}.webm`;
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
             
             // Cleanup
             URL.revokeObjectURL(url);
-            toast.success('Pattern exported as MP3!');
-
-            // Restore previous playback state
-            if (!wasPlaying) {
-              this.stop();
-            }
+            toast.success('Recording saved!');
           } catch (error) {
-            console.error('Error converting to MP3:', error);
-            toast.error('Failed to export pattern');
+            console.error('Error saving recording:', error);
+            toast.error('Failed to save recording');
+          } finally {
+            // Cleanup microphone resources
+            if (this.micStream) {
+              this.micStream.getTracks().forEach(track => track.stop());
+              this.micStream = null;
+            }
+            if (this.micSource) {
+              this.micSource.disconnect();
+              this.micSource = null;
+            }
+            if (this.micDestination) {
+              this.micDestination.disconnect();
+              this.micDestination = null;
+            }
+            
+            this.isRecording = false;
+            this.chunks = [];
+            this.recorder = null;
+            resolve();
           }
         };
-      }, (60 / this.getCurrentBpm()) * 4 * 1000); // One bar duration
+        
+        this.recorder.stop();
+      });
+    }
+  }
+  
+  public async exportPattern(pattern: Pattern) {
+    try {
+      // Create a buffer for the pattern
+      const buffer = await this.recordPattern(pattern);
+      
+      // Convert to WAV
+      const wavBlob = await this.audioBufferToWav(buffer);
+      
+      // Create download link
+      const url = URL.createObjectURL(wavBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `TR808-Pattern-${pattern.name || 'Untitled'}.wav`;
+      a.click();
+      
+      // Cleanup
+      URL.revokeObjectURL(url);
+      toast.success('Pattern exported successfully');
     } catch (error) {
       console.error('Error exporting pattern:', error);
       toast.error('Failed to export pattern');
     }
+  }
+  
+  private async recordPattern(pattern: Pattern): Promise<AudioBuffer> {
+    return new Promise((resolve, reject) => {
+      try {
+        // Create offline context for recording
+        const offlineContext = new OfflineAudioContext(2, 44100 * 4, 44100);
+        
+        // Create a buffer for the pattern
+        const buffer = offlineContext.createBuffer(2, 44100 * 4, 44100);
+        
+        // Schedule pattern playback
+        const stepDuration = 60 / pattern.bpm / 4; // 16th note duration
+        
+        for (let step = 0; step < 16; step++) {
+          const time = step * stepDuration;
+          
+          // Check each drum sound
+          DRUM_SOUNDS.forEach(sound => {
+            const steps = pattern.steps[sound.id];
+            if (steps && steps[step] && steps[step].active) {
+              const player = this.players.get(sound.id);
+              if (player) {
+                player.start(time);
+              }
+            }
+          });
+        }
+        
+        // Render the pattern
+        offlineContext.startRendering().then(renderedBuffer => {
+          resolve(renderedBuffer);
+        }).catch(reject);
+        
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  private audioBufferToWav(buffer: AudioBuffer): Promise<Blob> {
+    return new Promise((resolve) => {
+      const numChannels = buffer.numberOfChannels;
+      const sampleRate = buffer.sampleRate;
+      const format = 1;
+      const bitDepth = 16;
+      
+      const bytesPerSample = bitDepth / 8;
+      const blockAlign = numChannels * bytesPerSample;
+      
+      const wav = new ArrayBuffer(44 + buffer.length * blockAlign);
+      const view = new DataView(wav);
+      
+      // Write WAV header
+      const writeString = (view: DataView, offset: number, string: string) => {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      };
+      
+      writeString(view, 0, 'RIFF');
+      view.setUint32(4, 36 + buffer.length * blockAlign, true);
+      writeString(view, 8, 'WAVE');
+      writeString(view, 12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, format, true);
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * blockAlign, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitDepth, true);
+      writeString(view, 36, 'data');
+      view.setUint32(40, buffer.length * blockAlign, true);
+      
+      // Write audio data
+      const offset = 44;
+      for (let i = 0; i < buffer.length; i++) {
+        for (let channel = 0; channel < numChannels; channel++) {
+          const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
+          view.setInt16(offset + (i * blockAlign) + (channel * bytesPerSample), sample * 0x7FFF, true);
+        }
+      }
+      
+      resolve(new Blob([wav], { type: 'audio/wav' }));
+    });
   }
   
   public isCurrentlyRecording() {
@@ -451,62 +553,6 @@ export class AudioEngine {
         player.stop();
         player.start();
       }
-    }
-  }
-  
-  public async stopRecording() {
-    if (this.recorder && this.isRecording) {
-      return new Promise<void>((resolve) => {
-        this.recorder!.onstop = async () => {
-          const audioBlob = new Blob(this.chunks, { type: 'audio/webm' });
-          
-          try {
-            // Convert to MP3 using FFmpeg
-            const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-            const { fetchFile, toBlobURL } = await import('@ffmpeg/util');
-            
-            const ffmpeg = new FFmpeg();
-            await ffmpeg.load({
-              coreURL: await toBlobURL('https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.js', 'text/javascript'),
-              wasmURL: await toBlobURL('https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.wasm', 'application/wasm'),
-            });
-            
-            // Write the webm file
-            await ffmpeg.writeFile('input.webm', await fetchFile(audioBlob));
-            
-            // Convert to MP3
-            await ffmpeg.exec([
-              '-i', 'input.webm',
-              '-c:a', 'libmp3lame',
-              '-q:a', '2',
-              'output.mp3'
-            ]);
-            
-            // Read the output file
-            const data = await ffmpeg.readFile('output.mp3');
-            const mp3Blob = new Blob([data], { type: 'audio/mp3' });
-            
-            // Create download link
-            const url = URL.createObjectURL(mp3Blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `TR808-Recording-${new Date().toISOString().slice(0, 10)}.mp3`;
-            a.click();
-            
-            // Cleanup
-            URL.revokeObjectURL(url);
-            toast.success('Recording saved as MP3!');
-          } catch (error) {
-            console.error('Error converting to MP3:', error);
-            toast.error('Failed to save recording');
-          }
-          
-          this.isRecording = false;
-          resolve();
-        };
-        
-        this.recorder.stop();
-      });
     }
   }
 }

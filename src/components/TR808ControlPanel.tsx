@@ -11,6 +11,7 @@ import { Play, Pause, Square, Save, Upload, Download, Music, Mic } from 'lucide-
 import { toast } from 'sonner';
 import { useAuth } from '../hooks/useAuth';
 import { patternService } from '../services/patternService';
+import TR808PatternManager from './TR808PatternManager';
 
 interface TR808ControlPanelProps {
   pattern: Pattern;
@@ -23,103 +24,111 @@ export const TR808ControlPanel: React.FC<TR808ControlPanelProps> = ({
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [bpm, setBpm] = useState(pattern.bpm || DEFAULT_BPM);
+  const [isPatternManagerOpen, setIsPatternManagerOpen] = useState(false);
+  const [includeMic, setIncludeMic] = useState(false);
   const { user } = useAuth();
 
-  const handlePlayPause = () => {
-    if (isPlaying) {
-      audioEngine.stop();
-    } else {
-      audioEngine.start();
+  const handlePlayPause = async () => {
+    try {
+      if (isPlaying) {
+        audioEngine.stop();
+        setIsPlaying(false);
+      } else {
+        await audioEngine.start();
+        setIsPlaying(true);
+      }
+    } catch (error) {
+      console.error('Error toggling playback:', error);
+      toast.error('Failed to toggle playback');
     }
-    setIsPlaying(!isPlaying);
   };
 
-  const handleBpmChange = (newBpm: number) => {
-    if (newBpm >= 20 && newBpm <= 300) {
-      setBpm(newBpm);
-      audioEngine.setBpm(newBpm);
-      onPatternChange({ ...pattern, bpm: newBpm });
-    }
+  const handleBpmChange = (bpm: number) => {
+    onPatternChange({ ...pattern, bpm });
   };
 
   const handleRecordToggle = async () => {
-    if (isRecording) {
-      await audioEngine.stopRecording();
-      setIsRecording(false);
-    } else {
-      await audioEngine.startRecording();
-      setIsRecording(true);
+    try {
+      if (isRecording) {
+        await audioEngine.stopRecording();
+        setIsRecording(false);
+        toast.success('Recording saved');
+      } else {
+        await audioEngine.startRecording(includeMic);
+        setIsRecording(true);
+        toast.success('Recording started');
+      }
+    } catch (error) {
+      console.error('Error toggling recording:', error);
+      toast.error('Failed to toggle recording');
     }
   };
 
-  const handleExport = async () => {
-    try {
-      await audioEngine.exportPattern();
-    } catch (error) {
-      console.error('Error exporting pattern:', error);
-      toast.error('Failed to export pattern');
-    }
-  };
-
-  const handleSave = async () => {
-    if (!user) {
-      toast.error('Please log in to save patterns');
-      return;
-    }
-
-    try {
-      await patternService.savePattern(pattern, user.id);
-      toast.success('Pattern saved successfully!');
-    } catch (error) {
-      console.error('Error saving pattern:', error);
-      toast.error('Failed to save pattern');
-    }
+  const handleSavePattern = () => {
+    setIsPatternManagerOpen(true);
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4 bg-tr808-black rounded-lg">
+    <div className="tr808-panel p-4 rounded-lg shadow-md">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center space-x-4">
           <TR808Button
             onClick={handlePlayPause}
-            active={isPlaying}
-            className="bg-tr808-orange hover:bg-tr808-orange-light"
+            className="bg-tr808-black text-tr808-cream border border-tr808-orange hover:bg-tr808-orange-light"
           >
             {isPlaying ? 'Stop' : 'Play'}
           </TR808Button>
+          
           <TR808BpmControl
-            value={bpm}
+            value={pattern.bpm}
             onChange={handleBpmChange}
           />
-        </div>
-        <div className="flex items-center gap-4">
-          <TR808Button
-            onClick={handleRecordToggle}
-            active={isRecording}
-            className="bg-tr808-red hover:bg-tr808-red-light"
-          >
-            {isRecording ? 'Stop Recording' : 'Record Audio'}
-          </TR808Button>
-          <TR808Button
-            onClick={handleExport}
-            className="bg-tr808-black text-tr808-cream border border-tr808-orange hover:bg-tr808-orange-light"
-          >
-            Export Loop
-          </TR808Button>
+          
+          <div className="flex items-center space-x-2">
+            <TR808Button
+              onClick={handleRecordToggle}
+              className={`bg-tr808-black text-tr808-cream border ${isRecording ? 'border-red-500' : 'border-tr808-orange'} hover:bg-tr808-orange-light`}
+            >
+              {isRecording ? 'Stop Recording' : 'Record Audio'}
+            </TR808Button>
+            
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={includeMic}
+                  onChange={(e) => setIncludeMic(e.target.checked)}
+                />
+                <div className={`w-10 h-5 rounded-full transition-colors duration-200 ease-in-out ${
+                  includeMic ? 'bg-tr808-orange' : 'bg-tr808-silver-dark'
+                }`}>
+                  <div className={`w-4 h-4 rounded-full bg-white transform transition-transform duration-200 ease-in-out ${
+                    includeMic ? 'translate-x-5' : 'translate-x-1'
+                  }`} />
+                </div>
+              </div>
+              <span className="text-xs text-tr808-silver">Mic</span>
+            </label>
+          </div>
+          
           {user && (
             <TR808Button
-              onClick={handleSave}
-              className="bg-tr808-cream hover:bg-tr808-cream-light text-tr808-black"
+              onClick={handleSavePattern}
+              className="bg-tr808-black text-tr808-cream border border-tr808-orange hover:bg-tr808-orange-light"
             >
               Save Pattern
             </TR808Button>
           )}
         </div>
       </div>
-      <div className="w-full text-center text-tr808-orange text-lg font-bold mt-2">
-        Rhythm Composer TR-808
-      </div>
+
+      <TR808PatternManager
+        currentPattern={pattern}
+        onPatternLoad={onPatternChange}
+        onClose={() => setIsPatternManagerOpen(false)}
+        open={isPatternManagerOpen}
+      />
     </div>
   );
 };
