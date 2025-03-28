@@ -1,39 +1,33 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-export interface TR808ButtonProps {
+interface TR808ButtonProps {
   children: React.ReactNode;
   onClick: () => void;
-  variant?: 'default' | 'orange' | 'amber';
+  active?: boolean;
   disabled?: boolean;
+  className?: string;
 }
 
-const TR808Button: React.FC<TR808ButtonProps> = ({ 
-  children, 
-  onClick, 
-  variant = 'default',
-  disabled = false
+export const TR808Button: React.FC<TR808ButtonProps> = ({
+  children,
+  onClick,
+  active = false,
+  disabled = false,
+  className = ''
 }) => {
-  const baseClasses = "px-3 py-2 rounded-md flex items-center justify-center transition-colors";
-  const variantClasses = {
-    default: "bg-tr808-panel hover:bg-tr808-silver-dark/30 text-tr808-silver",
-    orange: "bg-tr808-orange hover:bg-tr808-orange/90 text-tr808-body",
-    amber: "bg-tr808-amber hover:bg-tr808-amber/90 text-tr808-body"
-  };
-
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={cn(
-        baseClasses,
-        variantClasses[variant],
-        disabled && "opacity-50 cursor-not-allowed hover:bg-tr808-panel"
-      )}
+      className={`
+        px-4 py-2 rounded-lg font-medium transition-colors
+        ${active ? 'bg-tr808-orange text-white' : 'bg-tr808-black text-tr808-cream border border-tr808-orange'}
+        ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-tr808-orange-light'}
+        ${className}
+      `}
     >
       {children}
     </button>
   );
 };
-
-export default TR808Button;
