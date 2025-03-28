@@ -33,7 +33,6 @@ const TR808: React.FC = () => {
         setIsLoaded(true);
         // Set initial pattern to the audio engine
         audioEngine.setPattern(pattern);
-        toast.success('TR-808 loaded and ready');
       });
       
       return () => {
@@ -50,7 +49,6 @@ const TR808: React.FC = () => {
   // Update audio engine when pattern changes
   useEffect(() => {
     try {
-      console.log("Pattern updated, sending to audio engine:", pattern);
       audioEngine.setPattern(pattern);
     } catch (err) {
       console.error('Error updating pattern:', err);

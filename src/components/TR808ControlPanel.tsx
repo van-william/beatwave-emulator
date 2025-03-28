@@ -135,7 +135,7 @@ const TR808ControlPanel: React.FC<TR808ControlPanelProps> = ({
             onClick={handleExport} 
             variant="amber"
           >
-            <Download size={16} className="mr-1" /> Export MP4
+            <Download size={16} className="mr-1" /> Export MP3
           </TR808Button>
         </div>
         
