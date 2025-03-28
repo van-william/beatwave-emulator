@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Pattern, SavedPattern } from '@/types';
-import TR808Button from './TR808Button';
+import { TR808Button } from './TR808Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Save, Trash, Download, Upload, Globe } from 'lucide-react';
@@ -205,10 +205,18 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
               />
               <Globe size={16} className={isPublic ? "text-tr808-orange" : "text-tr808-silver-dark"} />
             </div>
-            <TR808Button onClick={saveCurrentPattern} variant="orange" disabled={loading}>
+            <TR808Button
+              onClick={saveCurrentPattern}
+              disabled={!patternName.trim() || loading}
+              className="bg-tr808-orange hover:bg-tr808-orange-light"
+            >
               <Save size={16} className="mr-1" /> Save Current
             </TR808Button>
-            <TR808Button onClick={importPattern} variant="default" disabled={loading}>
+            <TR808Button 
+              onClick={importPattern} 
+              disabled={loading}
+              className="bg-tr808-black text-tr808-cream border border-tr808-orange hover:bg-tr808-orange-light"
+            >
               <Upload size={16} className="mr-1" /> Import
             </TR808Button>
           </div>
@@ -244,32 +252,24 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
                     </div>
                     
                     <div className="flex space-x-1">
-                      <button 
+                      <TR808Button
                         onClick={() => loadPattern(pattern)}
-                        className="p-1.5 bg-tr808-amber/90 hover:bg-tr808-amber rounded text-tr808-body"
-                        disabled={loading}
+                        className="bg-tr808-amber hover:bg-tr808-amber-light"
                       >
-                        <div className="sr-only">Load</div>
-                        <Upload size={16} />
-                      </button>
-                      
-                      <button 
+                        <Download size={14} className="mr-1" /> Load
+                      </TR808Button>
+                      <TR808Button
                         onClick={() => exportPattern(pattern)}
-                        className="p-1.5 bg-tr808-panel hover:bg-tr808-silver-dark/30 rounded text-tr808-silver"
-                        disabled={loading}
+                        className="bg-tr808-cream hover:bg-tr808-cream-light text-tr808-black"
                       >
-                        <div className="sr-only">Export</div>
-                        <Download size={16} />
-                      </button>
-                      
-                      <button 
+                        <Upload size={14} className="mr-1" /> Export
+                      </TR808Button>
+                      <TR808Button
                         onClick={() => deletePattern(pattern.id)}
-                        className="p-1.5 bg-red-800/40 hover:bg-red-800/60 rounded text-red-200"
-                        disabled={loading}
+                        className="bg-tr808-red hover:bg-tr808-red-light"
                       >
-                        <div className="sr-only">Delete</div>
-                        <Trash size={16} />
-                      </button>
+                        <Trash size={14} className="mr-1" /> Delete
+                      </TR808Button>
                     </div>
                   </div>
                 ))}
