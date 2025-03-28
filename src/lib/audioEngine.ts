@@ -3,14 +3,14 @@ import { DRUM_SOUNDS, TOTAL_STEPS } from './constants';
 import { Pattern } from '../types';
 import { toast } from 'sonner';
 
-class AudioEngine {
+export class AudioEngine {
   private players: Map<string, Tone.Player> = new Map();
   private recorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
   private isRecording = false;
   private currentStep = 0;
   private pattern: Pattern | null = null;
-  private isPlaying = false;
+  private _isPlaying = false;
   
   private volumes: Map<string, Tone.Volume> = new Map();
   private panners: Map<string, Tone.Panner> = new Map();
@@ -22,11 +22,14 @@ class AudioEngine {
   private totalSounds = DRUM_SOUNDS.length;
 
   constructor() {
+    console.log('AudioEngine constructor called');
     this.initializeTone();
   }
   
   private async initializeTone() {
     try {
+      console.log('Initializing Tone.js...');
+      
       // Create a limiter to prevent clipping
       const limiter = new Tone.Limiter(-3).toDestination();
       
@@ -34,133 +37,101 @@ class AudioEngine {
       this.soundsLoaded = 0;
       this.isLoaded = false;
       
-      // Load all drum sounds
-      console.log("Loading sounds from:", DRUM_SOUNDS.map(s => `/sounds/${s.soundFile}`));
-      
-      // Make individual player for each sound with proper path
+      // Create synthesized sounds for each drum
       for (const sound of DRUM_SOUNDS) {
         try {
+          console.log(`Setting up sound: ${sound.name}`);
+          
           // Create volume and panner nodes for each sound
           const volume = new Tone.Volume(0);
           const panner = new Tone.Panner(0);
           
-          // Create the player with the correct sound file path
-          const player = new Tone.Player({
-            url: `/sounds/${sound.soundFile}`,
-            onload: () => {
-              console.log(`Loaded sound: ${sound.name} (${sound.soundFile})`);
-              this.soundsLoaded++;
-              
-              if (this.soundsLoaded === this.totalSounds) {
-                console.log('All sounds loaded successfully!');
-                this.isLoaded = true;
-                
-                if (this.isLoadedCallback) {
-                  this.isLoadedCallback();
-                }
+          // Create a buffer for the synthesized sound
+          const buffer = Tone.context.createBuffer(2, 44100, 44100);
+          
+          // Create more distinct synthesized sounds based on instrument type
+          for (let channel = 0; channel < 2; channel++) {
+            const channelData = buffer.getChannelData(channel);
+            
+            // Apply different sound characteristics based on instrument type
+            if (sound.id.includes('kick')) {
+              // More authentic kick drum sound
+              for (let i = 0; i < 44100; i++) {
+                // Pitch sweep
+                const sweep = Math.exp(-i / 1000);
+                // Low frequency component
+                const lowFreq = Math.sin(i * 0.05) * sweep;
+                // High frequency component
+                const highFreq = Math.sin(i * 0.2) * sweep * 0.5;
+                // Noise component
+                const noise = (Math.random() * 2 - 1) * sweep * 0.3;
+                channelData[i] = (lowFreq + highFreq + noise) * 0.8;
               }
-            },
-            onerror: (err) => {
-              console.error(`Error loading sound ${sound.name} (${sound.soundFile}):`, err);
-              toast.error(`Failed to load: ${sound.name}`);
-              
-              // Create a unique fallback sound for each instrument type
-              const fallbackBuffer = Tone.context.createBuffer(2, 44100, 44100);
-              
-              // Create more distinct fallback sounds based on instrument type
-              for (let channel = 0; channel < 2; channel++) {
-                const channelData = fallbackBuffer.getChannelData(channel);
-                
-                // Apply different sound characteristics based on instrument type
-                if (sound.id.includes('kick')) {
-                  // More authentic kick drum sound
-                  for (let i = 0; i < 44100; i++) {
-                    // Pitch sweep
-                    const sweep = Math.exp(-i / 1000);
-                    // Low frequency component
-                    const lowFreq = Math.sin(i * 0.05) * sweep;
-                    // High frequency component
-                    const highFreq = Math.sin(i * 0.2) * sweep * 0.5;
-                    // Noise component
-                    const noise = (Math.random() * 2 - 1) * sweep * 0.3;
-                    channelData[i] = (lowFreq + highFreq + noise) * 0.8;
-                  }
-                } else if (sound.id.includes('snare')) {
-                  // More authentic snare sound
-                  for (let i = 0; i < 44100; i++) {
-                    // Body
-                    const body = Math.sin(i * 0.15) * Math.exp(-i / 2000);
-                    // Noise component
-                    const noise = (Math.random() * 2 - 1) * Math.exp(-i / 800);
-                    // High frequency component
-                    const highFreq = Math.sin(i * 0.4) * Math.exp(-i / 500);
-                    channelData[i] = (body + noise + highFreq) * 0.7;
-                  }
-                } else if (sound.id.includes('clap')) {
-                  // More authentic clap sound
-                  for (let i = 0; i < 44100; i++) {
-                    // Multiple noise components with different decay rates
-                    const noise1 = (Math.random() * 2 - 1) * Math.exp(-i / 400);
-                    const noise2 = (Math.random() * 2 - 1) * Math.exp(-i / 800);
-                    const noise3 = (Math.random() * 2 - 1) * Math.exp(-i / 1200);
-                    channelData[i] = (noise1 + noise2 + noise3) * 0.6;
-                  }
-                } else if (sound.id.includes('hat') || sound.id.includes('cymbal')) {
-                  // More authentic hi-hat/cymbal sound
-                  for (let i = 0; i < 44100; i++) {
-                    // Multiple noise components with different frequencies
-                    const noise1 = (Math.random() * 2 - 1) * Math.exp(-i / (sound.id.includes('open') ? 4000 : 800));
-                    const noise2 = (Math.random() * 2 - 1) * Math.exp(-i / (sound.id.includes('open') ? 6000 : 1200));
-                    const noise3 = (Math.random() * 2 - 1) * Math.exp(-i / (sound.id.includes('open') ? 8000 : 1600));
-                    channelData[i] = (noise1 + noise2 + noise3) * 0.5;
-                  }
-                } else if (sound.id.includes('tom')) {
-                  // More authentic tom sound
-                  for (let i = 0; i < 44100; i++) {
-                    const env = Math.exp(-i / 1500);
-                    // Adjust frequency based on tom type (low/mid/high)
-                    const freq = sound.id.includes('low') ? 0.1 : 
-                                sound.id.includes('mid') ? 0.15 : 0.2;
-                    // Add some noise for texture
-                    const noise = (Math.random() * 2 - 1) * env * 0.3;
-                    channelData[i] = (Math.sin(i * freq) * env + noise) * 0.7;
-                  }
-                } else if (sound.id.includes('cowbell')) {
-                  // More authentic cowbell sound
-                  for (let i = 0; i < 44100; i++) {
-                    const env = Math.exp(-i / 1000);
-                    // Multiple frequencies for metallic sound
-                    const freq1 = Math.sin(i * 0.3) * env;
-                    const freq2 = Math.sin(i * 0.5) * env * 0.5;
-                    const freq3 = Math.sin(i * 0.7) * env * 0.3;
-                    channelData[i] = (freq1 + freq2 + freq3) * 0.6;
-                  }
-                } else {
-                  // Default percussive sound for other instruments
-                  for (let i = 0; i < 44100; i++) {
-                    const env = Math.exp(-i / 2000);
-                    // Multiple frequencies for richer sound
-                    const freq1 = Math.sin(i * 0.15) * env;
-                    const freq2 = Math.sin(i * 0.3) * env * 0.5;
-                    const noise = (Math.random() * 2 - 1) * env * 0.3;
-                    channelData[i] = (freq1 + freq2 + noise) * 0.6;
-                  }
-                }
+            } else if (sound.id.includes('snare')) {
+              // More authentic snare sound
+              for (let i = 0; i < 44100; i++) {
+                // Body
+                const body = Math.sin(i * 0.15) * Math.exp(-i / 2000);
+                // Noise component
+                const noise = (Math.random() * 2 - 1) * Math.exp(-i / 800);
+                // High frequency component
+                const highFreq = Math.sin(i * 0.4) * Math.exp(-i / 500);
+                channelData[i] = (body + noise + highFreq) * 0.7;
               }
-              
-              player.buffer = new Tone.ToneAudioBuffer(fallbackBuffer);
-              this.soundsLoaded++;
-              
-              if (this.soundsLoaded === this.totalSounds) {
-                this.isLoaded = true;
-                toast.warning("Some sounds failed to load. Using fallback sounds.");
-                
-                if (this.isLoadedCallback) {
-                  this.isLoadedCallback();
-                }
+            } else if (sound.id.includes('clap')) {
+              // More authentic clap sound
+              for (let i = 0; i < 44100; i++) {
+                // Multiple noise components with different decay rates
+                const noise1 = (Math.random() * 2 - 1) * Math.exp(-i / 400);
+                const noise2 = (Math.random() * 2 - 1) * Math.exp(-i / 800);
+                const noise3 = (Math.random() * 2 - 1) * Math.exp(-i / 1200);
+                channelData[i] = (noise1 + noise2 + noise3) * 0.6;
+              }
+            } else if (sound.id.includes('hat') || sound.id.includes('cymbal')) {
+              // More authentic hi-hat/cymbal sound
+              for (let i = 0; i < 44100; i++) {
+                // Multiple noise components with different frequencies
+                const noise1 = (Math.random() * 2 - 1) * Math.exp(-i / (sound.id.includes('open') ? 4000 : 800));
+                const noise2 = (Math.random() * 2 - 1) * Math.exp(-i / (sound.id.includes('open') ? 6000 : 1200));
+                const noise3 = (Math.random() * 2 - 1) * Math.exp(-i / (sound.id.includes('open') ? 8000 : 1600));
+                channelData[i] = (noise1 + noise2 + noise3) * 0.5;
+              }
+            } else if (sound.id.includes('tom')) {
+              // More authentic tom sound
+              for (let i = 0; i < 44100; i++) {
+                const env = Math.exp(-i / 1500);
+                // Adjust frequency based on tom type (low/mid/high)
+                const freq = sound.id.includes('low') ? 0.1 : 
+                            sound.id.includes('mid') ? 0.15 : 0.2;
+                // Add some noise for texture
+                const noise = (Math.random() * 2 - 1) * env * 0.3;
+                channelData[i] = (Math.sin(i * freq) * env + noise) * 0.7;
+              }
+            } else if (sound.id.includes('cowbell')) {
+              // More authentic cowbell sound
+              for (let i = 0; i < 44100; i++) {
+                const env = Math.exp(-i / 1000);
+                // Multiple frequencies for metallic sound
+                const freq1 = Math.sin(i * 0.3) * env;
+                const freq2 = Math.sin(i * 0.5) * env * 0.5;
+                const freq3 = Math.sin(i * 0.7) * env * 0.3;
+                channelData[i] = (freq1 + freq2 + freq3) * 0.6;
+              }
+            } else {
+              // Default percussive sound for other instruments
+              for (let i = 0; i < 44100; i++) {
+                const env = Math.exp(-i / 2000);
+                // Multiple frequencies for richer sound
+                const freq1 = Math.sin(i * 0.15) * env;
+                const freq2 = Math.sin(i * 0.3) * env * 0.5;
+                const noise = (Math.random() * 2 - 1) * env * 0.3;
+                channelData[i] = (freq1 + freq2 + noise) * 0.6;
               }
             }
-          }).connect(volume);
+          }
+          
+          // Create a player with the synthesized buffer
+          const player = new Tone.Player(new Tone.ToneAudioBuffer(buffer)).connect(volume);
           
           // Connect the volume to the panner, and the panner to the limiter
           volume.connect(panner);
@@ -172,6 +143,16 @@ class AudioEngine {
           this.players.set(sound.id, player);
           
           console.log(`Set up audio pipeline for ${sound.id}`);
+          this.soundsLoaded++;
+          
+          if (this.soundsLoaded === this.totalSounds) {
+            console.log('All sounds initialized successfully!');
+            this.isLoaded = true;
+            
+            if (this.isLoadedCallback) {
+              this.isLoadedCallback();
+            }
+          }
         } catch (error) {
           console.error(`Error setting up sound ${sound.name}:`, error);
           toast.error(`Failed to initialize sound: ${sound.name}`);
@@ -186,9 +167,12 @@ class AudioEngine {
       // Set default BPM
       Tone.Transport.bpm.value = 120;
       
+      console.log('Tone.js initialization complete');
+      
     } catch (error) {
       console.error('Error initializing audio engine:', error);
-      toast.error('Failed to load audio samples. Please refresh the page.');
+      toast.error('Failed to initialize audio engine. Please refresh the page.');
+      throw error;
     }
   }
   
@@ -267,7 +251,7 @@ class AudioEngine {
       // Reset to first step when starting
       this.currentStep = 0;
       Tone.Transport.start();
-      this.isPlaying = true;
+      this._isPlaying = true;
       console.log("Sequencer started with pattern:", this.pattern);
     } catch (error) {
       console.error('Error starting playback:', error);
@@ -281,11 +265,11 @@ class AudioEngine {
     if (this.stepCallback) {
       this.stepCallback(-1); // -1 indicates no active step
     }
-    this.isPlaying = false;
+    this._isPlaying = false;
   }
   
-  public isCurrentlyPlaying() {
-    return this.isPlaying;
+  public get isPlaying(): boolean {
+    return this._isPlaying;
   }
   
   public setVolume(soundId: string, value: number) {
@@ -390,11 +374,22 @@ class AudioEngine {
     }
   }
   
-  public stopRecording() {
-    if (this.recorder && this.isRecording) {
+  public async stopRecording(): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      if (!this.recorder || !this.isRecording) {
+        reject(new Error('No active recording'));
+        return;
+      }
+
+      this.recorder.onstop = () => {
+        const blob = new Blob(this.chunks, { type: 'audio/wav' });
+        this.chunks = [];
+        this.isRecording = false;
+        resolve(blob);
+      };
+
       this.recorder.stop();
-      this.isRecording = false;
-    }
+    });
   }
   
   public isCurrentlyRecording() {

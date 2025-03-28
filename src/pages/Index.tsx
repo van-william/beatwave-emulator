@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import TR808 from '../components/TR808';
-import { Toaster } from 'sonner';
 import { toast } from 'sonner';
 
 const Index = () => {
@@ -32,7 +31,6 @@ const Index = () => {
         </div>
       )}
       <TR808 />
-      <Toaster />
     </div>
   );
 };

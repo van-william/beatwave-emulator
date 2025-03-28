@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import TR808DrumTrack from './TR808DrumTrack';
 import TR808ControlPanel from './TR808ControlPanel';
 import TR808PatternManager from './TR808PatternManager';
-import { DRUM_SOUNDS, TOTAL_STEPS, INITIAL_PATTERN } from '@/lib/constants';
-import { Pattern } from '@/types';
-import audioEngine from '@/lib/audioEngine';
+import { DRUM_SOUNDS, TOTAL_STEPS, INITIAL_PATTERN } from '../lib/constants';
+import { Pattern } from '../types';
+import audioEngine from '../lib/audioEngine';
 import { toast } from 'sonner';
 
 const TR808: React.FC = () => {
@@ -12,39 +12,68 @@ const TR808: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(-1);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isPatternManagerOpen, setIsPatternManagerOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    // Initialize canvas for video export
-    if (canvasRef.current) {
-      const canvas = canvasRef.current;
-      canvas.width = 800;
-      canvas.height = 600;
+    try {
+      // Initialize canvas for video export
+      if (canvasRef.current) {
+        const canvas = canvasRef.current;
+        canvas.width = 800;
+        canvas.height = 600;
+      }
+      
+      // Initialize audio engine
+      audioEngine.onStepChange((step) => {
+        setCurrentStep(step);
+      });
+      
+      audioEngine.onLoaded(() => {
+        setIsLoaded(true);
+        // Set initial pattern to the audio engine
+        audioEngine.setPattern(pattern);
+        toast.success('TR-808 loaded and ready');
+      });
+      
+      return () => {
+        // Cleanup
+        audioEngine.stop();
+      };
+    } catch (err) {
+      console.error('Error initializing TR808:', err);
+      setError(err instanceof Error ? err.message : 'Failed to initialize TR-808');
+      toast.error('Failed to initialize TR-808');
     }
-    
-    // Initialize audio engine
-    audioEngine.onStepChange((step) => {
-      setCurrentStep(step);
-    });
-    
-    audioEngine.onLoaded(() => {
-      setIsLoaded(true);
-      // Set initial pattern to the audio engine
-      audioEngine.setPattern(pattern);
-      toast.success('TR-808 loaded and ready');
-    });
-    
-    return () => {
-      // Cleanup
-      audioEngine.stop();
-    };
   }, [pattern]);
   
   // Update audio engine when pattern changes
   useEffect(() => {
-    console.log("Pattern updated, sending to audio engine:", pattern);
-    audioEngine.setPattern(pattern);
+    try {
+      console.log("Pattern updated, sending to audio engine:", pattern);
+      audioEngine.setPattern(pattern);
+    } catch (err) {
+      console.error('Error updating pattern:', err);
+      toast.error('Failed to update pattern');
+    }
   }, [pattern]);
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="bg-destructive/10 p-6 rounded-lg shadow-xl text-center">
+          <h2 className="text-destructive text-xl font-bold mb-3">Error</h2>
+          <p className="text-destructive/90">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-destructive text-white rounded hover:bg-destructive/90"
+          >
+            Reload Page
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleStepToggle = (soundId: string, stepId: number) => {
     setPattern((prevPattern) => {
