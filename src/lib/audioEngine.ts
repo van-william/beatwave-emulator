@@ -155,7 +155,6 @@ export class AudioEngine {
           }
         } catch (error) {
           console.error(`Error setting up sound ${sound.name}:`, error);
-          toast.error(`Failed to initialize sound: ${sound.name}`);
         }
       }
       
@@ -182,29 +181,22 @@ export class AudioEngine {
       return;
     }
     
-    // Log the current step for debugging
-    console.log(`Playing step ${this.currentStep}`);
-    
     // Check each drum sound to see if it should play on this step
     DRUM_SOUNDS.forEach(sound => {
       const steps = this.pattern?.steps[sound.id];
       
       if (steps && steps[this.currentStep] && steps[this.currentStep].active) {
-        console.log(`  -> Playing ${sound.name} on step ${this.currentStep}`);
         const player = this.players.get(sound.id);
         if (player) {
           // Make sure we're not still playing the previous trigger
           player.stop();
           player.start(time);
-        } else {
-          console.warn(`Player not found for sound: ${sound.id}`);
         }
       }
     });
     
     // Update the UI with current step
     if (this.stepCallback) {
-      // Use setTimeout to ensure the UI update happens after the current stack resolves
       setTimeout(() => this.stepCallback && this.stepCallback(this.currentStep), 0);
     }
     
@@ -245,14 +237,12 @@ export class AudioEngine {
       // Ensure audio context is running
       if (Tone.context.state !== 'running') {
         await Tone.start();
-        console.log("Tone.js context started:", Tone.context.state);
       }
       
       // Reset to first step when starting
       this.currentStep = 0;
       Tone.Transport.start();
       this._isPlaying = true;
-      console.log("Sequencer started with pattern:", this.pattern);
     } catch (error) {
       console.error('Error starting playback:', error);
       toast.error('Failed to start playback');
@@ -403,9 +393,6 @@ export class AudioEngine {
         // Stop any previous playback to avoid overlaps
         player.stop();
         player.start();
-      } else {
-        console.warn(`Sound ${soundId} not loaded yet`);
-        toast.warning("Some sounds are still loading...");
       }
     }
   }

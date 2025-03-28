@@ -6,11 +6,8 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    // Display helpful information about audio interactions
+    // Set loading state
     const timer = setTimeout(() => {
-      toast.info("Click any button to enable sound playback (browser requirement)", {
-        duration: 5000,
-      });
       setIsLoading(false);
     }, 1500);
     
