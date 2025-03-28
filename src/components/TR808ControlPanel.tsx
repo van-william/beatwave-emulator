@@ -1,147 +1,131 @@
 import React, { useState } from 'react';
-import TR808Button from './TR808Button';
+import { TR808Button } from './TR808Button';
 import TR808Knob from './TR808Knob';
 import TR808Slider from './TR808Slider';
 import { Pattern } from '@/types';
 import { DEFAULT_BPM } from '@/lib/constants';
-import audioEngine from '@/lib/audioEngine';
+import audioEngine from '../lib/audioEngine';
 import videoExporter from '@/lib/videoExporter';
 import { Play, Pause, Square, Save, Upload, Download, Music, Mic } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '../hooks/useAuth';
+import { patternService } from '../services/patternService';
 
 interface TR808ControlPanelProps {
   pattern: Pattern;
-  onBpmChange: (bpm: number) => void;
-  onSavePattern: () => void;
-  onLoadPattern: () => void;
-  canvasRef: React.RefObject<HTMLCanvasElement>;
+  onPatternChange: (pattern: Pattern) => void;
 }
 
-const TR808ControlPanel: React.FC<TR808ControlPanelProps> = ({
+export const TR808ControlPanel: React.FC<TR808ControlPanelProps> = ({
   pattern,
-  onBpmChange,
-  onSavePattern,
-  onLoadPattern,
-  canvasRef
+  onPatternChange
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [bpm, setBpm] = useState(pattern.bpm || DEFAULT_BPM);
+  const { user } = useAuth();
 
   const handlePlayPause = () => {
     if (isPlaying) {
       audioEngine.stop();
-      setIsPlaying(false);
     } else {
       audioEngine.start();
-      setIsPlaying(true);
     }
-  };
-
-  const handleStop = () => {
-    audioEngine.stop();
-    setIsPlaying(false);
-    
-    if (isRecording) {
-      audioEngine.stopRecording();
-      setIsRecording(false);
-    }
+    setIsPlaying(!isPlaying);
   };
 
   const handleBpmChange = (newBpm: number) => {
-    setBpm(newBpm);
-    onBpmChange(newBpm);
-    audioEngine.setBpm(newBpm);
+    if (newBpm >= 20 && newBpm <= 300) {
+      setBpm(newBpm);
+      audioEngine.setBpm(newBpm);
+      onPatternChange({ ...pattern, bpm: newBpm });
+    }
   };
 
-  const handleRecording = () => {
+  const handleRecordToggle = async () => {
     if (isRecording) {
-      audioEngine.stopRecording();
+      await audioEngine.stopRecording();
       setIsRecording(false);
     } else {
-      audioEngine.startRecording();
+      await audioEngine.startRecording();
       setIsRecording(true);
-      
-      // Auto-start playback if not already playing
-      if (!isPlaying) {
-        audioEngine.start();
-        setIsPlaying(true);
-      }
     }
   };
 
   const handleExport = async () => {
-    await videoExporter.exportPattern(pattern, canvasRef);
+    try {
+      await audioEngine.exportPattern();
+    } catch (error) {
+      console.error('Error exporting pattern:', error);
+      toast.error('Failed to export pattern');
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user) {
+      toast.error('Please log in to save patterns');
+      return;
+    }
+
+    try {
+      await patternService.savePattern(pattern, user.id);
+      toast.success('Pattern saved successfully!');
+    } catch (error) {
+      console.error('Error saving pattern:', error);
+      toast.error('Failed to save pattern');
+    }
   };
 
   return (
-    <div className="tr808-panel p-4 rounded-lg shadow-md animate-fade-in">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center space-x-2">
-          <TR808Button 
-            onClick={handlePlayPause} 
-            variant={isPlaying ? "orange" : "default"}
+    <div className="flex flex-col gap-4 p-4 bg-tr808-black rounded-lg">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <TR808Button
+            onClick={handlePlayPause}
             active={isPlaying}
-            className="w-14 h-14 rounded-full"
+            className="bg-tr808-orange hover:bg-tr808-orange-light"
           >
-            {isPlaying ? <Pause size={24} /> : <Play size={24} />}
+            {isPlaying ? 'Stop' : 'Play'}
           </TR808Button>
-          
-          <TR808Button 
-            onClick={handleStop} 
-            className="w-12 h-12 rounded-full"
-          >
-            <Square size={18} />
-          </TR808Button>
+          <div className="flex items-center gap-2">
+            <label htmlFor="bpm" className="text-tr808-cream">BPM:</label>
+            <input
+              id="bpm"
+              type="number"
+              min="20"
+              max="300"
+              value={bpm}
+              onChange={(e) => handleBpmChange(Number(e.target.value))}
+              className="w-16 px-2 py-1 bg-tr808-black border border-tr808-orange text-tr808-cream rounded"
+            />
+          </div>
         </div>
-        
-        <div className="flex items-center space-x-4">
-          <TR808Slider
-            min={60}
-            max={200}
-            value={bpm}
-            onChange={handleBpmChange}
-            label="BPM"
-          />
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <TR808Button 
-            onClick={onSavePattern} 
-            variant="default"
-          >
-            <Save size={16} className="mr-1" /> Save
-          </TR808Button>
-          
-          <TR808Button 
-            onClick={onLoadPattern} 
-            variant="default"
-          >
-            <Upload size={16} className="mr-1" /> Load
-          </TR808Button>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <TR808Button 
-            onClick={handleRecording} 
-            variant={isRecording ? "orange" : "default"}
+        <div className="flex items-center gap-4">
+          <TR808Button
+            onClick={handleRecordToggle}
             active={isRecording}
+            className="bg-tr808-red hover:bg-tr808-red-light"
           >
-            <Mic size={16} className="mr-1" /> 
-            {isRecording ? "Stop Rec" : "Record"}
+            {isRecording ? 'Stop Recording' : 'Record Audio'}
           </TR808Button>
-          
-          <TR808Button 
-            onClick={handleExport} 
-            variant="amber"
+          <TR808Button
+            onClick={handleExport}
+            className="bg-tr808-amber hover:bg-tr808-amber-light"
           >
-            <Download size={16} className="mr-1" /> Export MP3
+            Export Loop
           </TR808Button>
+          {user && (
+            <TR808Button
+              onClick={handleSave}
+              className="bg-tr808-cream hover:bg-tr808-cream-light text-tr808-black"
+            >
+              Save Pattern
+            </TR808Button>
+          )}
         </div>
-        
-        <div className="w-full text-center text-tr808-orange text-lg font-bold mt-2">
-          Rhythm Composer TR-808
-        </div>
+      </div>
+      <div className="w-full text-center text-tr808-orange text-lg font-bold mt-2">
+        Rhythm Composer TR-808
       </div>
     </div>
   );

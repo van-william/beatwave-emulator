@@ -290,6 +290,7 @@ export class AudioEngine {
   public async startRecording() {
     if (!this.isRecording) {
       try {
+        // Create a MediaRecorder that captures the audio output
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         this.chunks = [];
         this.recorder = new MediaRecorder(stream, {
@@ -302,11 +303,56 @@ export class AudioEngine {
           }
         };
         
-        this.recorder.onstop = async () => {
-          const audioBlob = new Blob(this.chunks, { type: 'audio/webm' });
+        // Start recording
+        this.recorder.start();
+        this.isRecording = true;
+        toast.success('Audio recording started');
+      } catch (error) {
+        console.error('Error starting recording:', error);
+        toast.error('Failed to start recording');
+      }
+    }
+  }
+  
+  public async exportPattern() {
+    if (!this.pattern) {
+      toast.error('No pattern to export');
+      return;
+    }
+
+    try {
+      // Create a temporary recorder for the pattern
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chunks: Blob[] = [];
+      const recorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      // Start recording
+      recorder.start();
+      toast.success('Exporting pattern...');
+
+      // Play one loop of the pattern
+      const wasPlaying = this.isPlaying;
+      if (!wasPlaying) {
+        this.start();
+      }
+
+      // Stop after one loop
+      setTimeout(async () => {
+        recorder.stop();
+        
+        recorder.onstop = async () => {
+          const audioBlob = new Blob(chunks, { type: 'audio/webm' });
           
-          // Convert to MP3 using FFmpeg
           try {
+            // Convert to MP3 using FFmpeg
             const { FFmpeg } = await import('@ffmpeg/ffmpeg');
             const { fetchFile, toBlobURL } = await import('@ffmpeg/util');
             
@@ -323,7 +369,81 @@ export class AudioEngine {
             await ffmpeg.exec([
               '-i', 'input.webm',
               '-c:a', 'libmp3lame',
-              '-q:a', '2',  // VBR quality setting (0-9, lower is better)
+              '-q:a', '2',
+              'output.mp3'
+            ]);
+            
+            // Read the output file
+            const data = await ffmpeg.readFile('output.mp3');
+            const mp3Blob = new Blob([data], { type: 'audio/mp3' });
+            
+            // Create download link
+            const url = URL.createObjectURL(mp3Blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `TR808-Pattern-${new Date().toISOString().slice(0, 10)}.mp3`;
+            a.click();
+            
+            // Cleanup
+            URL.revokeObjectURL(url);
+            toast.success('Pattern exported as MP3!');
+
+            // Restore previous playback state
+            if (!wasPlaying) {
+              this.stop();
+            }
+          } catch (error) {
+            console.error('Error converting to MP3:', error);
+            toast.error('Failed to export pattern');
+          }
+        };
+      }, (60 / this.getCurrentBpm()) * 4 * 1000); // One bar duration
+    } catch (error) {
+      console.error('Error exporting pattern:', error);
+      toast.error('Failed to export pattern');
+    }
+  }
+  
+  public isCurrentlyRecording() {
+    return this.isRecording;
+  }
+  
+  public playSound(soundId: string) {
+    const player = this.players.get(soundId);
+    if (player) {
+      if (player.loaded) {
+        // Stop any previous playback to avoid overlaps
+        player.stop();
+        player.start();
+      }
+    }
+  }
+  
+  public async stopRecording() {
+    if (this.recorder && this.isRecording) {
+      return new Promise<void>((resolve) => {
+        this.recorder!.onstop = async () => {
+          const audioBlob = new Blob(this.chunks, { type: 'audio/webm' });
+          
+          try {
+            // Convert to MP3 using FFmpeg
+            const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+            const { fetchFile, toBlobURL } = await import('@ffmpeg/util');
+            
+            const ffmpeg = new FFmpeg();
+            await ffmpeg.load({
+              coreURL: await toBlobURL('https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.js', 'text/javascript'),
+              wasmURL: await toBlobURL('https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.wasm', 'application/wasm'),
+            });
+            
+            // Write the webm file
+            await ffmpeg.writeFile('input.webm', await fetchFile(audioBlob));
+            
+            // Convert to MP3
+            await ffmpeg.exec([
+              '-i', 'input.webm',
+              '-c:a', 'libmp3lame',
+              '-q:a', '2',
               'output.mp3'
             ]);
             
@@ -343,57 +463,15 @@ export class AudioEngine {
             toast.success('Recording saved as MP3!');
           } catch (error) {
             console.error('Error converting to MP3:', error);
-            // Fallback to webm if conversion fails
-            const url = URL.createObjectURL(audioBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `TR808-Recording-${new Date().toISOString().slice(0, 10)}.webm`;
-            a.click();
-            URL.revokeObjectURL(url);
-            toast.warning('Recording saved as WebM (MP3 conversion failed)');
+            toast.error('Failed to save recording');
           }
+          
+          this.isRecording = false;
+          resolve();
         };
         
-        this.recorder.start();
-        this.isRecording = true;
-        toast.success('Recording started');
-      } catch (error) {
-        console.error('Error starting recording:', error);
-        toast.error('Failed to start recording. Please check your microphone permissions.');
-      }
-    }
-  }
-  
-  public async stopRecording(): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-      if (!this.recorder || !this.isRecording) {
-        reject(new Error('No active recording'));
-        return;
-      }
-
-      this.recorder.onstop = () => {
-        const blob = new Blob(this.chunks, { type: 'audio/wav' });
-        this.chunks = [];
-        this.isRecording = false;
-        resolve(blob);
-      };
-
-      this.recorder.stop();
-    });
-  }
-  
-  public isCurrentlyRecording() {
-    return this.isRecording;
-  }
-  
-  public playSound(soundId: string) {
-    const player = this.players.get(soundId);
-    if (player) {
-      if (player.loaded) {
-        // Stop any previous playback to avoid overlaps
-        player.stop();
-        player.start();
-      }
+        this.recorder.stop();
+      });
     }
   }
 }
