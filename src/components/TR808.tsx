@@ -129,6 +129,16 @@ const TR808: React.FC = () => {
   return (
     <div className="min-h-screen bg-tr808-body text-tr808-silver flex flex-col px-4 py-6 overflow-hidden">
       <div className="max-w-6xl mx-auto w-full space-y-6">
+        {/* Roland TR-808 Title Block */}
+        <div className="flex justify-center mb-6">
+          <div className="relative w-full max-w-4xl bg-black border-b-2 border-tr808-orange pb-2">
+            <div className="flex items-center justify-between px-6 py-3">
+              <span className="text-tr808-orange text-3xl font-medium tracking-wide">Rhythm Composer</span>
+              <span className="text-tr808-orange text-3xl font-bold tracking-wider">TR-808</span>
+            </div>
+          </div>
+        </div>
+        
         {/* Hidden canvas for video export */}
         <canvas ref={canvasRef} className="hidden" />
         
