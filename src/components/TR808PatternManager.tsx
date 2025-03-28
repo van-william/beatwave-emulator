@@ -3,11 +3,10 @@ import { Pattern, SavedPattern } from '@/types';
 import { TR808Button } from './TR808Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Save, Trash, Download, Upload, Globe } from 'lucide-react';
+import { Save, Trash, Download, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { patternService } from '@/services/patternService';
-import { Switch } from '@/components/ui/switch';
 
 interface TR808PatternManagerProps {
   currentPattern: Pattern;
@@ -25,7 +24,6 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
   const { user } = useAuth();
   const [patterns, setPatterns] = useState<SavedPattern[]>([]);
   const [patternName, setPatternName] = useState(currentPattern.name);
-  const [isPublic, setIsPublic] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -66,7 +64,7 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
       const savedPattern = await patternService.savePattern(
         { ...currentPattern, name: patternName },
         user.id,
-        isPublic
+        false // Always private
       );
       
       setPatterns(prev => [savedPattern, ...prev]);
@@ -189,6 +187,16 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="bg-tr808-black border border-tr808-orange/50 text-tr808-cream max-w-3xl">
+        <div className="flex justify-center mb-4">
+          <div className="bg-tr808-orange/90 rounded-sm px-6 py-1.5 inline-block transform -rotate-1">
+            <div className="font-bold tracking-wider text-tr808-black text-xl flex items-center">
+              <span className="mr-2">ROLAND</span>
+              <span className="bg-tr808-black text-tr808-orange px-2 py-0.5 rounded-sm text-lg font-mono">TR-808</span>
+              <span className="ml-2 text-xs font-normal tracking-tight opacity-80">RHYTHM COMPOSER</span>
+            </div>
+          </div>
+        </div>
+        
         <DialogHeader>
           <DialogTitle className="text-tr808-orange text-2xl">Pattern Manager</DialogTitle>
           <DialogDescription className="text-tr808-cream/80">
@@ -204,20 +212,12 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
               placeholder="Pattern name"
               className="bg-tr808-body border-tr808-orange/30 text-tr808-cream focus:ring-tr808-orange/50 focus:border-tr808-orange/50"
             />
-            <div className="flex items-center space-x-2">
-              <Switch
-                checked={isPublic}
-                onCheckedChange={setIsPublic}
-                className="data-[state=checked]:bg-tr808-orange"
-              />
-              <Globe size={16} className={isPublic ? "text-tr808-orange" : "text-tr808-cream/50"} />
-            </div>
             <TR808Button
               onClick={saveCurrentPattern}
               disabled={!patternName.trim() || loading}
               className="bg-tr808-orange hover:bg-tr808-orange-light text-tr808-cream"
             >
-              <Save size={16} className="mr-1" /> Save Current
+              <Save size={16} className="mr-1" /> Save
             </TR808Button>
             <TR808Button 
               onClick={importPattern} 
@@ -249,9 +249,6 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
                     <div className="flex-1">
                       <div className="flex items-center space-x-2">
                         <span className="text-tr808-cream font-medium">{pattern.name}</span>
-                        {pattern.is_public && (
-                          <Globe size={14} className="text-tr808-orange" />
-                        )}
                       </div>
                       <div className="text-xs text-tr808-cream/60">
                         BPM: {pattern.bpm} • {new Date(pattern.created_at).toLocaleDateString()}
