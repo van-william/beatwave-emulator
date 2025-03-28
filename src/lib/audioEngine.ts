@@ -217,8 +217,30 @@ export class AudioEngine {
   }
   
   public setPattern(pattern: Pattern) {
-    this.pattern = pattern;
-    Tone.Transport.bpm.value = pattern.bpm;
+    try {
+      // Store current playback state
+      const wasPlaying = this._isPlaying;
+      
+      // Update pattern
+      this.pattern = pattern;
+      
+      // Update BPM if it changed
+      if (pattern.bpm !== Tone.Transport.bpm.value) {
+        if (wasPlaying) {
+          Tone.Transport.bpm.rampTo(pattern.bpm, 0.1);
+        } else {
+          Tone.Transport.bpm.value = pattern.bpm;
+        }
+      }
+      
+      // If we were playing, ensure we stay playing
+      if (wasPlaying && Tone.Transport.state !== 'started') {
+        Tone.Transport.start();
+      }
+    } catch (error) {
+      console.error('Error updating pattern:', error);
+      toast.error('Failed to update pattern');
+    }
   }
   
   public async start() {
@@ -277,9 +299,22 @@ export class AudioEngine {
   }
   
   public setBpm(bpm: number) {
-    Tone.Transport.bpm.value = bpm;
-    if (this.pattern) {
-      this.pattern.bpm = bpm;
+    try {
+      if (this._isPlaying) {
+        // Use rampTo for smooth transitions when playing
+        Tone.Transport.bpm.rampTo(bpm, 0.1);
+      } else {
+        // Set immediately if not playing
+        Tone.Transport.bpm.value = bpm;
+      }
+      
+      // Update pattern BPM if it exists
+      if (this.pattern) {
+        this.pattern.bpm = bpm;
+      }
+    } catch (error) {
+      console.error('Error setting BPM:', error);
+      toast.error('Failed to update BPM');
     }
   }
   

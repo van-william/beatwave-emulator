@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { TR808Button } from './TR808Button';
+import { TR808BpmControl } from './TR808BpmControl';
 import TR808Knob from './TR808Knob';
 import TR808Slider from './TR808Slider';
 import { Pattern } from '@/types';
@@ -87,18 +88,10 @@ export const TR808ControlPanel: React.FC<TR808ControlPanelProps> = ({
           >
             {isPlaying ? 'Stop' : 'Play'}
           </TR808Button>
-          <div className="flex items-center gap-2">
-            <label htmlFor="bpm" className="text-tr808-cream">BPM:</label>
-            <input
-              id="bpm"
-              type="number"
-              min="20"
-              max="300"
-              value={bpm}
-              onChange={(e) => handleBpmChange(Number(e.target.value))}
-              className="w-16 px-2 py-1 bg-tr808-black border border-tr808-orange text-tr808-cream rounded"
-            />
-          </div>
+          <TR808BpmControl
+            value={bpm}
+            onChange={handleBpmChange}
+          />
         </div>
         <div className="flex items-center gap-4">
           <TR808Button
@@ -110,7 +103,7 @@ export const TR808ControlPanel: React.FC<TR808ControlPanelProps> = ({
           </TR808Button>
           <TR808Button
             onClick={handleExport}
-            className="bg-tr808-amber hover:bg-tr808-amber-light"
+            className="bg-tr808-black text-tr808-cream border border-tr808-orange hover:bg-tr808-orange-light"
           >
             Export Loop
           </TR808Button>
