@@ -330,6 +330,12 @@ export class AudioEngine {
   public async startRecording(includeMic: boolean = false) {
     if (!this.isRecording) {
       try {
+        // Check for browser compatibility
+        if (!window.MediaRecorder) {
+          toast.error('Your browser does not support audio recording');
+          return;
+        }
+        
         // Create a MediaStreamDestination to capture the audio output
         const destination = Tone.context.createMediaStreamDestination();
         
@@ -340,6 +346,11 @@ export class AudioEngine {
 
         // If microphone is enabled, get the mic stream and mix it with the output
         if (includeMic) {
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            toast.error('Your browser does not support microphone access');
+            return;
+          }
+          
           try {
             this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             this.micSource = Tone.context.createMediaStreamSource(this.micStream);
@@ -553,6 +564,39 @@ export class AudioEngine {
         player.stop();
         player.start();
       }
+    }
+  }
+  
+  public async reset() {
+    try {
+      // Stop any ongoing playback
+      if (this.isPlaying) {
+        await this.togglePlayback();
+      }
+      
+      // Stop any active recording
+      if (this.isRecording) {
+        await this.stopRecording();
+      }
+      
+      // Reset all internal state
+      this.isInitialized = false;
+      this.isLoaded = false;
+      
+      // Dispose previous resources
+      if (this.players) {
+        this.players.forEach(player => player.dispose());
+      }
+      
+      // Re-initialize
+      await this.initialize();
+      
+      toast.success('Audio engine reset successfully');
+      return true;
+    } catch (error) {
+      console.error('Failed to reset audio engine:', error);
+      toast.error('Failed to reset audio engine. Please reload the page.');
+      return false;
     }
   }
 }

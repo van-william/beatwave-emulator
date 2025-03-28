@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { Pattern } from '@/types'
 
 export const patternService = {
-  async savePattern(pattern: Pattern, userId: string) {
+  async savePattern(pattern: Pattern, userId: string, isPublic: boolean = false) {
     const { data, error } = await supabase
       .from('patterns')
       .insert([
@@ -11,6 +11,7 @@ export const patternService = {
           name: pattern.name || 'Untitled Pattern',
           bpm: pattern.bpm,
           steps: pattern.steps,
+          is_public: isPublic,
           created_at: new Date().toISOString()
         }
       ])
