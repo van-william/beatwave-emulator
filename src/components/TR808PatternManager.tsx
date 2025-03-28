@@ -34,7 +34,7 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
       
       try {
         setLoading(true);
-        const userPatterns = await patternService.getUserPatterns(user.id);
+        const userPatterns = await patternService.getPatterns(user.id);
         setPatterns(userPatterns);
       } catch (error) {
         console.error('Error loading patterns:', error);
@@ -84,7 +84,7 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
 
     try {
       setLoading(true);
-      await patternService.deletePattern(id, user.id);
+      await patternService.deletePattern(id);
       setPatterns(prev => prev.filter(p => p.id !== id));
       toast.success('Pattern deleted');
     } catch (error) {
@@ -95,10 +95,17 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
     }
   };
 
-  const loadPattern = (pattern: SavedPattern) => {
+  const loadPattern = (savedPattern: SavedPattern) => {
+    // Convert SavedPattern to Pattern by extracting only the required fields
+    const pattern: Pattern = {
+      id: savedPattern.id,
+      name: savedPattern.name,
+      bpm: savedPattern.bpm,
+      steps: savedPattern.steps
+    };
     onPatternLoad(pattern);
     onClose();
-    toast.success(`Pattern "${pattern.name}" loaded`);
+    toast.success(`Pattern "${savedPattern.name}" loaded`);
   };
 
   const exportPattern = (pattern: SavedPattern) => {
@@ -181,10 +188,10 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-tr808-panel border-tr808-silver-dark/30 text-tr808-silver max-w-3xl">
+      <DialogContent className="bg-tr808-black border border-tr808-orange/50 text-tr808-cream max-w-3xl">
         <DialogHeader>
           <DialogTitle className="text-tr808-orange text-2xl">Pattern Manager</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-tr808-cream/80">
             Save, load, and manage your TR-808 patterns
           </DialogDescription>
         </DialogHeader>
@@ -195,7 +202,7 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
               value={patternName}
               onChange={(e) => setPatternName(e.target.value)}
               placeholder="Pattern name"
-              className="bg-tr808-body border-tr808-silver-dark/50 text-tr808-silver"
+              className="bg-tr808-body border-tr808-orange/30 text-tr808-cream focus:ring-tr808-orange/50 focus:border-tr808-orange/50"
             />
             <div className="flex items-center space-x-2">
               <Switch
@@ -203,25 +210,25 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
                 onCheckedChange={setIsPublic}
                 className="data-[state=checked]:bg-tr808-orange"
               />
-              <Globe size={16} className={isPublic ? "text-tr808-orange" : "text-tr808-silver-dark"} />
+              <Globe size={16} className={isPublic ? "text-tr808-orange" : "text-tr808-cream/50"} />
             </div>
             <TR808Button
               onClick={saveCurrentPattern}
               disabled={!patternName.trim() || loading}
-              className="bg-tr808-orange hover:bg-tr808-orange-light"
+              className="bg-tr808-orange hover:bg-tr808-orange-light text-tr808-cream"
             >
               <Save size={16} className="mr-1" /> Save Current
             </TR808Button>
             <TR808Button 
               onClick={importPattern} 
               disabled={loading}
-              className="bg-tr808-black text-tr808-cream border border-tr808-orange hover:bg-tr808-orange-light"
+              className="bg-tr808-black text-tr808-cream border border-tr808-orange hover:bg-tr808-orange/50"
             >
               <Upload size={16} className="mr-1" /> Import
             </TR808Button>
           </div>
           
-          <div className="border-t border-tr808-silver-dark/30 pt-4">
+          <div className="border-t border-tr808-orange/20 pt-4">
             <h3 className="text-tr808-orange font-medium mb-2">Your Patterns</h3>
             
             {loading ? (
@@ -229,7 +236,7 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-tr808-orange mx-auto"></div>
               </div>
             ) : patterns.length === 0 ? (
-              <div className="text-center py-4 text-tr808-silver-dark">
+              <div className="text-center py-4 text-tr808-cream/50">
                 No saved patterns yet
               </div>
             ) : (
@@ -237,16 +244,16 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
                 {patterns.map((pattern) => (
                   <div 
                     key={pattern.id} 
-                    className="flex items-center justify-between bg-tr808-body/50 p-3 rounded-md border border-tr808-silver-dark/20"
+                    className="flex items-center justify-between bg-tr808-body/50 p-3 rounded-md border border-tr808-orange/20 hover:border-tr808-orange/40 transition-colors"
                   >
                     <div className="flex-1">
                       <div className="flex items-center space-x-2">
-                        <span className="text-tr808-silver font-medium">{pattern.name}</span>
+                        <span className="text-tr808-cream font-medium">{pattern.name}</span>
                         {pattern.is_public && (
                           <Globe size={14} className="text-tr808-orange" />
                         )}
                       </div>
-                      <div className="text-xs text-tr808-silver-dark">
+                      <div className="text-xs text-tr808-cream/60">
                         BPM: {pattern.bpm} • {new Date(pattern.created_at).toLocaleDateString()}
                       </div>
                     </div>
@@ -254,19 +261,19 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
                     <div className="flex space-x-1">
                       <TR808Button
                         onClick={() => loadPattern(pattern)}
-                        className="bg-tr808-amber hover:bg-tr808-amber-light"
+                        className="bg-tr808-orange hover:bg-tr808-orange-light text-tr808-cream"
                       >
                         <Download size={14} className="mr-1" /> Load
                       </TR808Button>
                       <TR808Button
                         onClick={() => exportPattern(pattern)}
-                        className="bg-tr808-cream hover:bg-tr808-cream-light text-tr808-black"
+                        className="bg-tr808-black text-tr808-cream border border-tr808-orange hover:bg-tr808-orange/50"
                       >
                         <Upload size={14} className="mr-1" /> Export
                       </TR808Button>
                       <TR808Button
                         onClick={() => deletePattern(pattern.id)}
-                        className="bg-tr808-red hover:bg-tr808-red-light"
+                        className="bg-tr808-black text-tr808-red border border-tr808-red hover:bg-tr808-red/20"
                       >
                         <Trash size={14} className="mr-1" /> Delete
                       </TR808Button>
