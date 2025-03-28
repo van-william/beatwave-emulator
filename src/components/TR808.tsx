@@ -6,6 +6,7 @@ import { DRUM_SOUNDS, TOTAL_STEPS, INITIAL_PATTERN } from '../lib/constants';
 import { Pattern } from '../types';
 import audioEngine from '../lib/audioEngine';
 import { toast } from 'sonner';
+import { useAuth } from '../hooks/useAuth';
 
 const TR808: React.FC = () => {
   const [pattern, setPattern] = useState<Pattern>(INITIAL_PATTERN);
@@ -14,47 +15,63 @@ const TR808: React.FC = () => {
   const [isPatternManagerOpen, setIsPatternManagerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { user } = useAuth();
 
+  // Initialize audio engine
   useEffect(() => {
-    try {
-      // Initialize canvas for video export
-      if (canvasRef.current) {
-        const canvas = canvasRef.current;
-        canvas.width = 800;
-        canvas.height = 600;
+    let isMounted = true;
+
+    const initializeAudio = async () => {
+      try {
+        // Initialize canvas for video export
+        if (canvasRef.current) {
+          const canvas = canvasRef.current;
+          canvas.width = 800;
+          canvas.height = 600;
+        }
+        
+        // Initialize audio engine
+        audioEngine.onStepChange((step) => {
+          if (isMounted) {
+            setCurrentStep(step);
+          }
+        });
+        
+        audioEngine.onLoaded(() => {
+          if (isMounted) {
+            setIsLoaded(true);
+            // Set initial pattern to the audio engine
+            audioEngine.setPattern(pattern);
+          }
+        });
+      } catch (err) {
+        console.error('Error initializing TR808:', err);
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to initialize TR-808');
+          toast.error('Failed to initialize TR-808');
+        }
       }
-      
-      // Initialize audio engine
-      audioEngine.onStepChange((step) => {
-        setCurrentStep(step);
-      });
-      
-      audioEngine.onLoaded(() => {
-        setIsLoaded(true);
-        // Set initial pattern to the audio engine
-        audioEngine.setPattern(pattern);
-      });
-      
-      return () => {
-        // Cleanup
-        audioEngine.stop();
-      };
-    } catch (err) {
-      console.error('Error initializing TR808:', err);
-      setError(err instanceof Error ? err.message : 'Failed to initialize TR-808');
-      toast.error('Failed to initialize TR-808');
-    }
-  }, [pattern]);
+    };
+
+    initializeAudio();
+
+    return () => {
+      isMounted = false;
+      audioEngine.stop();
+    };
+  }, [user]); // Re-initialize when auth state changes
   
   // Update audio engine when pattern changes
   useEffect(() => {
-    try {
-      audioEngine.setPattern(pattern);
-    } catch (err) {
-      console.error('Error updating pattern:', err);
-      toast.error('Failed to update pattern');
+    if (isLoaded) {
+      try {
+        audioEngine.setPattern(pattern);
+      } catch (err) {
+        console.error('Error updating pattern:', err);
+        toast.error('Failed to update pattern');
+      }
     }
-  }, [pattern]);
+  }, [pattern, isLoaded]);
 
   if (error) {
     return (
@@ -83,14 +100,10 @@ const TR808: React.FC = () => {
         );
       }
       
-      const updatedPattern = {
+      return {
         ...prevPattern,
         steps: newSteps
       };
-      
-      // Log pattern updates for debugging
-      console.log(`Toggle step ${stepId} for ${soundId}. Pattern updated.`);
-      return updatedPattern;
     });
   };
 
@@ -122,10 +135,10 @@ const TR808: React.FC = () => {
         {/* Control Panel */}
         <TR808ControlPanel
           pattern={pattern}
-          onBpmChange={handleBpmChange}
-          onSavePattern={handleSavePattern}
-          onLoadPattern={handleLoadPattern}
-          canvasRef={canvasRef}
+          onPatternChange={(updatedPattern) => {
+            setPattern(updatedPattern);
+            handleBpmChange(updatedPattern.bpm);
+          }}
         />
         
         {/* Main Sequencer */}

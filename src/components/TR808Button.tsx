@@ -22,7 +22,7 @@ export const TR808Button: React.FC<TR808ButtonProps> = ({
       disabled={disabled}
       className={`
         px-4 py-2 rounded-lg font-medium transition-colors
-        ${active ? 'bg-tr808-orange text-white' : 'bg-tr808-black text-tr808-cream border border-tr808-orange'}
+        ${active ? 'bg-tr808-orange text-white' : 'bg-tr808-black/90 text-tr808-cream border border-tr808-orange'}
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-tr808-orange-light'}
         ${className}
       `}

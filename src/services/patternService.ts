@@ -1,17 +1,19 @@
-import { supabase } from '../lib/supabase'
-import { Pattern } from '../types'
+import { supabase } from '@/lib/supabase'
+import { Pattern } from '@/types'
 
 export const patternService = {
-  async savePattern(pattern: Pattern, userId: string, isPublic: boolean = false) {
+  async savePattern(pattern: Pattern, userId: string) {
     const { data, error } = await supabase
       .from('patterns')
-      .insert({
-        user_id: userId,
-        name: pattern.name,
-        bpm: pattern.bpm,
-        steps: pattern.steps,
-        is_public: isPublic
-      })
+      .insert([
+        {
+          user_id: userId,
+          name: pattern.name || 'Untitled Pattern',
+          bpm: pattern.bpm,
+          steps: pattern.steps,
+          created_at: new Date().toISOString()
+        }
+      ])
       .select()
       .single()
 
@@ -36,7 +38,7 @@ export const patternService = {
     return data
   },
 
-  async getUserPatterns(userId: string) {
+  async getPatterns(userId: string) {
     const { data, error } = await supabase
       .from('patterns')
       .select('*')
@@ -58,12 +60,11 @@ export const patternService = {
     return data
   },
 
-  async deletePattern(id: string, userId: string) {
+  async deletePattern(patternId: string) {
     const { error } = await supabase
       .from('patterns')
       .delete()
-      .eq('id', id)
-      .eq('user_id', userId)
+      .eq('id', patternId)
 
     if (error) throw error
   }
