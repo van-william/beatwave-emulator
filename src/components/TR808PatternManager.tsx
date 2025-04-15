@@ -187,12 +187,18 @@ const TR808PatternManager: React.FC<TR808PatternManagerProps> = ({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="bg-tr808-black border border-tr808-orange/50 text-tr808-cream max-w-3xl">
-        <div className="flex justify-center mb-4">
-          <div className="bg-tr808-orange/90 rounded-sm px-6 py-1.5 inline-block transform -rotate-1">
-            <div className="font-bold tracking-wider text-tr808-black text-xl flex items-center">
-              <span className="mr-2">ROLAND</span>
-              <span className="bg-tr808-black text-tr808-orange px-2 py-0.5 rounded-sm text-lg font-mono">TR-808</span>
-              <span className="ml-2 text-xs font-normal tracking-tight opacity-80">RHYTHM COMPOSER</span>
+        <div className="flex justify-center mb-4 w-full">
+          <div 
+            className="bg-tr808-orange w-full px-6 py-2 rounded-sm" 
+            style={{ transform: 'none' }}
+          >
+            <div className="flex items-center justify-between">
+              <span style={{ color: 'white' }} className="text-xl font-bold">ROLAND</span>
+              <span 
+                style={{ color: 'white', backgroundColor: 'black' }} 
+                className="px-3 py-0.5 rounded-sm text-xl font-bold"
+              >TR-808</span>
+              <span style={{ color: 'white' }} className="text-xl font-bold">RHYTHM COMPOSER</span>
             </div>
           </div>
         </div>
