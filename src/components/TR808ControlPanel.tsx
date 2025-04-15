@@ -27,6 +27,9 @@ export const TR808ControlPanel: React.FC<TR808ControlPanelProps> = ({
   const [isPatternManagerOpen, setIsPatternManagerOpen] = useState(false);
   const [includeMic, setIncludeMic] = useState(false);
   const { user } = useAuth();
+  const [isExporting, setIsExporting] = useState(false);
+  const [recordingUrl, setRecordingUrl] = useState<string | null>(null);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
 
   const handlePlayPause = async () => {
     try {
@@ -38,34 +41,77 @@ export const TR808ControlPanel: React.FC<TR808ControlPanelProps> = ({
         setIsPlaying(true);
       }
     } catch (error) {
-      console.error('Error toggling playback:', error);
-      toast.error('Failed to toggle playback');
+      console.error("Error toggling playback:", error);
+      toast.error("Failed to control playback. Please refresh the page.");
     }
   };
 
-  const handleBpmChange = (bpm: number) => {
-    onPatternChange({ ...pattern, bpm });
+  const handleBpmChange = (newBpm: number) => {
+    try {
+      audioEngine.setBpm(newBpm);
+      onPatternChange({
+        ...pattern,
+        bpm: newBpm
+      });
+    } catch (error) {
+      console.error("Error changing BPM:", error);
+      toast.error("Failed to update tempo.");
+    }
   };
 
   const handleRecordToggle = async () => {
     try {
       if (isRecording) {
         await audioEngine.stopRecording();
+        // Since stopRecording doesn't return a blob in the current implementation
+        // we won't try to capture it here
         setIsRecording(false);
-        toast.success('Recording saved');
+        toast.success("Recording saved!");
       } else {
-        await audioEngine.startRecording(includeMic);
+        if (!isPlaying) {
+          await audioEngine.start();
+          setIsPlaying(true);
+        }
+        
+        audioEngine.startRecording(includeMic);
         setIsRecording(true);
-        toast.success('Recording started');
+        setRecordingUrl(null);
+        setRecordedBlob(null);
+        
+        toast.success("Recording started...");
       }
     } catch (error) {
-      console.error('Error toggling recording:', error);
-      toast.error('Failed to toggle recording');
+      console.error("Error during recording:", error);
+      setIsRecording(false);
+      toast.error("Recording failed. Please check your permissions and try again.");
     }
   };
 
   const handleSavePattern = () => {
-    setIsPatternManagerOpen(true);
+    try {
+      if (!user) {
+        toast.warning("Please log in to save patterns");
+        return;
+      }
+      
+      setIsPatternManagerOpen(true);
+    } catch (error) {
+      console.error("Error opening pattern manager:", error);
+      toast.error("Failed to open save dialog.");
+    }
+  };
+
+  const handleExportPattern = async () => {
+    try {
+      setIsExporting(true);
+      await audioEngine.exportPattern(pattern);
+      toast.success("Pattern exported successfully!");
+    } catch (error) {
+      console.error("Error exporting pattern:", error);
+      toast.error("Failed to export pattern. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -120,6 +166,14 @@ export const TR808ControlPanel: React.FC<TR808ControlPanelProps> = ({
               Save Pattern
             </TR808Button>
           )}
+          
+          <TR808Button
+            onClick={handleExportPattern}
+            disabled={isExporting}
+            className="bg-tr808-black text-tr808-cream border border-tr808-orange hover:bg-tr808-orange-light"
+          >
+            {isExporting ? 'Exporting...' : 'Export Pattern'}
+          </TR808Button>
         </div>
       </div>
 

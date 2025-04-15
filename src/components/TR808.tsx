@@ -59,7 +59,7 @@ const TR808: React.FC = () => {
       isMounted = false;
       audioEngine.stop();
     };
-  }, [user]); // Re-initialize when auth state changes
+  }, [pattern, user]); // Add pattern as a dependency
   
   // Update audio engine when pattern changes
   useEffect(() => {
